@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 # ======================= CONFIGURAÇÃO =======================
-LINK_PLANILHA = "COLE_AQUI_O_LINK_DA_PLANILHA_DE_CONSERTO"
+LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1rZto32QSflOjbx9Gp9tC9geyrA9WzJ6tIHbX6zAnXsU/edit?gid=0#gid=0"
 NOME_DA_ABA = "Lead Time"
 
 # Regras do fluxo (ajuste aqui se a regra do seu processo for diferente)
