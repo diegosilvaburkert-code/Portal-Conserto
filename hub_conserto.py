@@ -8,14 +8,14 @@ import pandas as pd
 import streamlit as st
 
 # ======================= CONFIGURAÇÃO =======================
-LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1rZto32QSflOjbx9Gp9tC9geyrA9WzJ6tIHbX6zAnXsU/edit?gid=0#gid=0"
+LINK_PLANILHA = "COLE_AQUI_O_LINK_DA_PLANILHA_DE_CONSERTO"
 NOME_DA_ABA = "Lead Time"
 
 # Regras do fluxo (ajuste aqui se a regra do seu processo for diferente)
 APROVACOES_OK = {"aprovado", "cortesia", "garantia"}      # relatório aprovado -> segue para reparo
 APROVACOES_REPROVADAS = {"reprovado"}                      # relatório reprovado -> sem reparo, vai para devolução
 APROVACOES_SEM_PEDIDO = {"cortesia", "garantia"}           # não exigem Aceite de Pedido (Ordem SAP)
-CONCLUIDOS = {"concluido", "finalizado"}                   # valores de "Status de conclusão" que encerram o caso
+CONCLUIDOS = {"concluido", "finalizado"}                   # "Status de conclusão" que ENCERRA o caso, mesmo com etapas não realizadas
 ALERTA_AMARELO_DIAS = 30                                   # dias desde o recebimento
 ALERTA_VERMELHO_DIAS = 60
 
@@ -130,9 +130,33 @@ def avaliar(r):
     fora = (f("data_reparo") and not (p5 or bloq)) or (f("solic_devol") and not (p6 or bloq))
     aviso = " ⚠️ Há campos preenchidos fora da sequência do fluxo; confira a planilha." if fora else ""
 
+    # Status de conclusão = Finalizado/Concluído encerra o caso: as etapas não realizadas são desconsideradas
+    final = p1 and concl
+    if final:
+        # cada etapa vale pelo que está preenchida nela; o que não foi feito vira "–" (desconsiderado)
+        feito = [p1, not falta(req2), not falta(req3), f("data_verif"), ap in APROVACOES_OK,
+                 f("data_reparo") and (dispensa or f("aceite")),
+                 f("solic_devol") or _norm(r["status_devol"]) == "devolvido"]
+        est = ["ok" if x else "pulado" for x in feito] + ["ok"]
+        if reprov:
+            est[4] = "bloqueado"
+        nao_feitas = [NOMES_FASES[i] for i in range(1, 7) if est[i] == "pulado"]
+        aviso = ""
+
     def res(status, grupo, detalhe, faltam=()):
         return {"estados": est, "status": status, "grupo": grupo, "detalhe": detalhe + aviso,
-                "faltam": list(faltam), "concluido": bool(p8)}
+                "faltam": list(faltam), "concluido": bool(p8 or final)}
+
+    if final:
+        if reprov:
+            d = "Relatório reprovado: equipamento devolvido sem reparo. Caso finalizado."
+        else:
+            d = "Caso finalizado."
+            d += (" Etapas não realizadas (desconsideradas): " + ", ".join(nao_feitas) + ".") if nao_feitas \
+                else " Todas as etapas foram concluídas."
+        if r["status_devol"]:
+            d += f" Status da devolução: {r['status_devol']}."
+        return res("🟢 Finalizado", "Concluído", d)
 
     def devolucao():
         extra = f" Status da devolução: {r['status_devol']}." if r["status_devol"] else ""
@@ -303,10 +327,8 @@ def _badge(estados, idx):
     s = [estados[i] for i in idx]
     if "bloqueado" in s:
         return "✕ Bloqueado", "bad"
-    if all(x == "ok" for x in s):
-        return "✓ Concluída", "ok"
-    if all(x == "pulado" for x in s):
-        return "– Não se aplica", "skip"
+    if "pendente" not in s:
+        return ("– Não se aplica", "skip") if all(x == "pulado" for x in s) else ("✓ Concluída", "ok")
     if any(x == "ok" for x in s):
         return "◐ Em andamento", "part"
     return "⏳ Pendente", "pend"
