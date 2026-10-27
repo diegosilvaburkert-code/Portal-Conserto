@@ -153,7 +153,7 @@ st.markdown(f"""
             color: #fff !important;
         }}
 
-        /* Status de Conexão na Rodapé da Sidebar */
+        /* Status de Conexão no Rodapé da Sidebar */
         .sidebar-status-container {{
             position: absolute;
             bottom: -500px;
@@ -341,7 +341,7 @@ def avaliar(r):
     return res("🟢 Concluído", "Concluído", "Equipamento reparado, devolvido e processo concluído.")
 
 
-# ======================= LEITURA DA PLANILHA =======================
+# ======================= LEITURA E ESCRITA DA PLANILHA =======================
 @st.cache_resource
 def conectar():
     info_json = st.secrets["gspread_credentials"]["json_string"]
@@ -370,12 +370,13 @@ def ler_casos(valores, hoje):
         if j is None:
             ausentes.append(LABEL[k])
     linhas = []
-    for l in valores[ini:]:
+    for row_idx, l in enumerate(valores[ini:], start=ini + 1):
         reg = {k: (l[j].strip() if j is not None and j < len(l) else "") for k, j in idx.items()}
         reg = {k: ("" if v in ("-", "—") else v) for k, v in reg.items()}
+        reg["_row"] = row_idx  # Guarda a linha exata na planilha para updates futuros
         if reg["cliente"] or reg["nf"]:
             linhas.append(reg)
-    df = pd.DataFrame(linhas, columns=list(CAMPOS))
+    df = pd.DataFrame(linhas)
     av = [avaliar(r) for r in df.to_dict("records")]
     df["status"] = [a["status"] for a in av]
     df["grupo"] = [a["grupo"] for a in av]
@@ -384,6 +385,48 @@ def ler_casos(valores, hoje):
     dt = df["data_receb"].map(parse_data)
     df["dias"] = [(hoje - d).days if pd.notna(d) and not c else None for d, c in zip(dt, df["concluido"])]
     return df, ausentes
+
+
+def salvar_caso_planilha(dados_form, row_num=None):
+    """Insere uma nova linha ou atualiza uma linha existente na planilha."""
+    try:
+        sh = conectar().worksheet(NOME_DA_ABA)
+        valores = sh.get_all_values()
+        
+        # Acha a linha de cabeçalho exata
+        ini, cab = 4, None
+        for i, l in enumerate(valores[:20]):
+            t = _norm(" ".join(l))
+            if "nome do cliente" in t and "nota fiscal" in t:
+                ini, cab = i + 1, [_norm(c) for c in l]
+                break
+        
+        idx = {}
+        for k, (termos, padrao) in CAMPOS.items():
+            j = padrao if cab is None else next((j for j, h in enumerate(cab) if all(t in h for t in termos)), None)
+            idx[k] = j
+
+        # Monta a linha com base nas colunas reais da planilha
+        max_col = max([v for v in idx.values() if v is not None], default=18)
+        nova_linha = [""] * (max_col + 1)
+        for k, j in idx.items():
+            if j is not None and k in dados_form:
+                nova_linha[j] = str(dados_form[k])
+
+        if row_num:
+            # Atualiza linha existente
+            cell_range = f"A{row_num}:R{row_num}"
+            sh.update(cell_range, [nova_linha[:len(CAMPOS)]])
+            st.cache_data.clear()
+            return True, "Caso atualizado com sucesso na planilha!"
+        else:
+            # Insere nova linha logo após o cabeçalho ou na próxima linha livre
+            proxima_linha = len(valores) + 1
+            sh.insert_row(nova_linha[:len(CAMPOS)], index=proxima_linha)
+            st.cache_data.clear()
+            return True, "Novo caso inserido com sucesso na planilha!"
+    except Exception as e:
+        return False, f"Erro ao gravar na planilha: {e}"
 
 
 # ======================= VISUAL (HTML) =======================
@@ -589,15 +632,14 @@ except Exception as e:
 
 
 # ======================= NAVEGAÇÃO LATERAL (SIDEBAR) =======================
-chaves = ["consulta", "casos"]
-nomes_completos = ["🔎 Consulta de Equipamento", "📋 Casos em andamento"]
-icones_apenas = ["🔎", "📋"]
+chaves = ["consulta", "casos", "gerenciar"]
+nomes_completos = ["🔎 Consulta de Equipamento", "📋 Casos em andamento", "✏️ Inserir / Atualizar Case"]
+icones_apenas = ["🔎", "📋", "✏️"]
 
 if "pagina_conserto" not in st.session_state:
     st.session_state["pagina_conserto"] = "consulta"
 
 with st.sidebar:
-    # Topo limpo e proporcional (Logo + Botão Toggle em colunas)
     if expandido:
         c_logo, c_btn = st.columns([4, 1])
         with c_logo:
@@ -614,7 +656,6 @@ with st.sidebar:
 
     st.markdown('<div style="border-bottom:1px solid #e8edfb;margin-bottom:16px;"></div>', unsafe_allow_html=True)
 
-    # Botões de Navegação (Texto Completo vs Ícone)
     rotulos = nomes_completos if expandido else icones_apenas
     for _k, _label in zip(chaves, rotulos):
         _ativo = st.session_state["pagina_conserto"] == _k
@@ -622,7 +663,6 @@ with st.sidebar:
             st.session_state["pagina_conserto"] = _k
             st.rerun()
 
-    # Indicador de Conexão no Rodapé
     texto_conexao = "🟢 Conexão Estabelecida" if expandido else "🟢"
     st.markdown(
         f'<div class="sidebar-status-container">{texto_conexao}</div>',
@@ -692,5 +732,99 @@ elif pagina == "casos":
                f"amarelo ≥ {ALERTA_AMARELO_DIAS} dias · vermelho ≥ {ALERTA_VERMELHO_DIAS} dias desde o recebimento")
     v = v.sort_values("dias", ascending=False, na_position="last")
     components.html(html_tabela_interativa(v), height=690, scrolling=False)
+
+# -------- 3. INSERIR / ATUALIZAR CASE --------
+elif pagina == "gerenciar":
+    st.subheader("✏️ Inserir Novo Case ou Atualizar Case Existente")
+    
+    modo = st.radio("Selecione a operação:", ["➕ Inserir Novo Case", "✏️ Atualizar Case Existente"], horizontal=True)
+    
+    caso_existente = None
+    row_num = None
+    
+    if modo == "✏️ Atualizar Case Existente":
+        pesquisa_id = st.text_input("Digite o nº da Nota Fiscal ou Service Notification para carregar o case:", placeholder="Ex: 828848 ou 62500507").strip()
+        if pesquisa_id:
+            match = casos[(casos["nf"].str.strip() == pesquisa_id) | (casos["service"].str.strip() == pesquisa_id)]
+            if not match.empty:
+                caso_existente = match.iloc[0]
+                row_num = int(caso_existente["_row"])
+                st.success(f"Case encontrado! Cliente: **{caso_existente['cliente']}** (NF: {caso_existente['nf']} | Service: {caso_existente['service']})")
+            else:
+                st.warning("Nenhum case encontrado com esse número de NF ou Service Notification.")
+
+    with st.form("form_case"):
+        st.markdown("---")
+        st.markdown("#### 📁 Bloco 1: Registro de Clientes & Logística")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            ordem_status = st.text_input("Ordem Status", value=caso_existente["ordem_status"] if caso_existente is not None else "")
+            cliente = st.text_input("Nome do cliente *", value=caso_existente["cliente"] if caso_existente is not None else "")
+            nf = st.text_input("Nº da Nota Fiscal *", value=caso_existente["nf"] if caso_existente is not None else "")
+        with c2:
+            itens = st.text_input("Itens da nota", value=caso_existente["itens"] if caso_existente is not None else "")
+            data_nf = st.text_input("Data da NF de origem", value=caso_existente["data_nf"] if caso_existente is not None else "")
+            data_receb = st.text_input("Data de recebimento", value=caso_existente["data_receb"] if caso_existente is not None else "")
+        with c3:
+            data_crm = st.text_input("Data de Registro (CRM)", value=caso_existente["data_crm"] if caso_existente is not None else "")
+            cas = st.text_input("CAS-SO-BR (CRM)", value=caso_existente["cas"] if caso_existente is not None else "")
+            service = st.text_input("Service Notification", value=caso_existente["service"] if caso_existente is not None else "")
+
+        st.markdown("---")
+        st.markdown("#### 🔍 Bloco 2: Verificação, Aprovação & Reparo")
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            data_verif = st.text_input("Data final da verificação", value=caso_existente["data_verif"] if caso_existente is not None else "")
+            status_verif = st.text_input("Status de Verificação", value=caso_existente["status_verif"] if caso_existente is not None else "")
+        with c5:
+            aprovacao = st.selectbox("Aprovação de relatório", ["", "Aprovado", "Cortesia", "Garantia", "Reprovado"], 
+                                      index=["", "Aprovado", "Cortesia", "Garantia", "Reprovado"].index(caso_existente["aprovacao"]) if caso_existente is not None and caso_existente["aprovacao"] in ["", "Aprovado", "Cortesia", "Garantia", "Reprovado"] else 0)
+            aceite = st.text_input("Aceite de Pedido (Ordem SAP)", value=caso_existente["aceite"] if caso_existente is not None else "")
+        with c6:
+            data_ordem = st.text_input("Data da Ordem do Pedido", value=caso_existente["data_ordem"] if caso_existente is not None else "")
+            data_reparo = st.text_input("Data Reparo Finalizado", value=caso_existente["data_reparo"] if caso_existente is not None else "")
+
+        st.markdown("---")
+        st.markdown("#### 🚚 Bloco 3: Devolução & Conclusão")
+        c7, c8 = st.columns(2)
+        with c7:
+            solic_devol = st.text_input("Solicitação de devolução", value=caso_existente["solic_devol"] if caso_existente is not None else "")
+            status_devol = st.text_input("Status de devolução", value=caso_existente["status_devol"] if caso_existente is not None else "")
+        with c8:
+            status_concl = st.text_input("Status de conclusão", value=caso_existente["status_concl"] if caso_existente is not None else "")
+
+        st.markdown("---")
+        submitted = st.form_submit_button("💾 Salvar Dados na Planilha", use_container_width=True)
+
+        if submitted:
+            if not cliente.strip() or not nf.strip():
+                st.error("Preencha ao menos o **Nome do cliente** e o **Nº da Nota Fiscal** para salvar.")
+            else:
+                dados_form = {
+                    "ordem_status": ordem_status, "cliente": cliente, "nf": nf, "itens": itens,
+                    "data_nf": data_nf, "data_receb": data_receb, "data_crm": data_crm, "cas": cas,
+                    "service": service, "data_verif": data_verif, "status_verif": status_verif,
+                    "aprovacao": aprovacao, "aceite": aceite, "data_ordem": data_ordem,
+                    "data_reparo": data_reparo, "solic_devol": solic_devol, "status_devol": status_devol,
+                    "status_concl": status_concl
+                }
+                
+                if modo == "✏️ Atualizar Case Existente":
+                    if row_num:
+                        sucesso, msg = salvar_caso_planilha(dados_form, row_num=row_num)
+                        if sucesso:
+                            st.success(msg)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    else:
+                        st.error("Nenhum case foi selecionado para atualização. Busque por uma NF válida acima.")
+                else:
+                    sucesso, msg = salvar_caso_planilha(dados_form, row_num=None)
+                    if sucesso:
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
 
 st.markdown("<br><hr><div style='text-align: center; color: #6b7a90; font-size: 13px;'>Hub de Conserto · Desenvolvido por Diego Elvis</div>", unsafe_allow_html=True)
