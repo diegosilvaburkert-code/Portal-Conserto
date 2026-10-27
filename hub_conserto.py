@@ -178,6 +178,57 @@ st.markdown(f"""
         [data-testid="stWidgetLabel"] {{ text-align: center !important; display: block !important; width: 100% !important; }}
         [data-testid="stTextInput"] div[data-baseweb="input"] {{ max-width: 560px !important; margin: 0 auto !important; }}
         [data-testid="stTextInput"] input {{ text-align: center !important; }}
+
+        /* ===== ESTILOS REFINADOS PARA O FORMULÁRIO ===== */
+        .stForm [data-testid="stWidgetLabel"] label p, 
+        .stRadio [data-testid="stWidgetLabel"] label p,
+        .stSelectbox [data-testid="stWidgetLabel"] label p,
+        .stTextInput [data-testid="stWidgetLabel"] label p {{
+            color: #2c3e57 !important;
+            font-weight: 600 !important;
+            font-size: 13.5px !important;
+        }}
+
+        .form-section-card {{
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(79, 103, 232, 0.08);
+            border: 1px solid #e2e8f0;
+            text-align: left !important;
+        }}
+        
+        .form-section-card h4, .form-section-card p {{
+            text-align: left !important;
+        }}
+
+        .stTextInput input, .stSelectbox div[data-baseweb="select"] {{
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 10px !important;
+            color: #1e293b !important;
+        }}
+        .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within {{
+            border-color: #4f67e8 !important;
+            box-shadow: 0 0 0 3px rgba(79, 103, 232, 0.15) !important;
+        }}
+
+        .stFormSubmitButton button {{
+            background: linear-gradient(90deg, #4f67e8, #7c93fb) !important;
+            color: white !important;
+            font-weight: 700 !important;
+            border-radius: 12px !important;
+            padding: 0.75rem 1.5rem !important;
+            border: none !important;
+            box-shadow: 0 4px 15px rgba(79, 103, 232, 0.3) !important;
+            transition: all 0.2s ease;
+            width: 100%;
+        }}
+        .stFormSubmitButton button:hover {{
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -373,7 +424,7 @@ def ler_casos(valores, hoje):
     for row_idx, l in enumerate(valores[ini:], start=ini + 1):
         reg = {k: (l[j].strip() if j is not None and j < len(l) else "") for k, j in idx.items()}
         reg = {k: ("" if v in ("-", "—") else v) for k, v in reg.items()}
-        reg["_row"] = row_idx  # Guarda a linha exata na planilha para updates futuros
+        reg["_row"] = row_idx
         if reg["cliente"] or reg["nf"]:
             linhas.append(reg)
     df = pd.DataFrame(linhas)
@@ -388,12 +439,10 @@ def ler_casos(valores, hoje):
 
 
 def salvar_caso_planilha(dados_form, row_num=None):
-    """Insere uma nova linha ou atualiza uma linha existente na planilha."""
     try:
         sh = conectar().worksheet(NOME_DA_ABA)
         valores = sh.get_all_values()
         
-        # Acha a linha de cabeçalho exata
         ini, cab = 4, None
         for i, l in enumerate(valores[:20]):
             t = _norm(" ".join(l))
@@ -406,7 +455,6 @@ def salvar_caso_planilha(dados_form, row_num=None):
             j = padrao if cab is None else next((j for j, h in enumerate(cab) if all(t in h for t in termos)), None)
             idx[k] = j
 
-        # Monta a linha com base nas colunas reais da planilha
         max_col = max([v for v in idx.values() if v is not None], default=18)
         nova_linha = [""] * (max_col + 1)
         for k, j in idx.items():
@@ -414,13 +462,11 @@ def salvar_caso_planilha(dados_form, row_num=None):
                 nova_linha[j] = str(dados_form[k])
 
         if row_num:
-            # Atualiza linha existente
             cell_range = f"A{row_num}:R{row_num}"
             sh.update(cell_range, [nova_linha[:len(CAMPOS)]])
             st.cache_data.clear()
             return True, "Caso atualizado com sucesso na planilha!"
         else:
-            # Insere nova linha logo após o cabeçalho ou na próxima linha livre
             proxima_linha = len(valores) + 1
             sh.insert_row(nova_linha[:len(CAMPOS)], index=proxima_linha)
             st.cache_data.clear()
@@ -754,8 +800,12 @@ elif pagina == "gerenciar":
                 st.warning("Nenhum case encontrado com esse número de NF ou Service Notification.")
 
     with st.form("form_case"):
-        st.markdown("---")
-        st.markdown("#### 📁 Bloco 1: Registro de Clientes & Logística")
+        # Bloco 1
+        st.markdown("""
+            <div class="form-section-card">
+                <div style="font-size: 15px; font-weight: 700; color: #4f67e8; margin-bottom: 15px;">📁 Bloco 1: Registro de Clientes & Logística</div>
+        """, unsafe_allow_html=True)
+        
         c1, c2, c3 = st.columns(3)
         with c1:
             ordem_status = st.text_input("Ordem Status", value=caso_existente["ordem_status"] if caso_existente is not None else "")
@@ -769,31 +819,45 @@ elif pagina == "gerenciar":
             data_crm = st.text_input("Data de Registro (CRM)", value=caso_existente["data_crm"] if caso_existente is not None else "")
             cas = st.text_input("CAS-SO-BR (CRM)", value=caso_existente["cas"] if caso_existente is not None else "")
             service = st.text_input("Service Notification", value=caso_existente["service"] if caso_existente is not None else "")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.markdown("#### 🔍 Bloco 2: Verificação, Aprovação & Reparo")
+        # Bloco 2
+        st.markdown("""
+            <div class="form-section-card">
+                <div style="font-size: 15px; font-weight: 700; color: #4f67e8; margin-bottom: 15px;">🔍 Bloco 2: Verificação, Aprovação & Reparo</div>
+        """, unsafe_allow_html=True)
+        
         c4, c5, c6 = st.columns(3)
         with c4:
             data_verif = st.text_input("Data final da verificação", value=caso_existente["data_verif"] if caso_existente is not None else "")
             status_verif = st.text_input("Status de Verificação", value=caso_existente["status_verif"] if caso_existente is not None else "")
         with c5:
-            aprovacao = st.selectbox("Aprovação de relatório", ["", "Aprovado", "Cortesia", "Garantia", "Reprovado"], 
-                                      index=["", "Aprovado", "Cortesia", "Garantia", "Reprovado"].index(caso_existente["aprovacao"]) if caso_existente is not None and caso_existente["aprovacao"] in ["", "Aprovado", "Cortesia", "Garantia", "Reprovado"] else 0)
+            opcoes_aprov = ["", "Aprovado", "Cortesia", "Garantia", "Reprovado"]
+            idx_aprov = opcoes_aprov.index(caso_existente["aprovacao"]) if caso_existente is not None and caso_existente["aprovacao"] in opcoes_aprov else 0
+            aprovacao = st.selectbox("Aprovação de relatório", opcoes_aprov, index=idx_aprov)
             aceite = st.text_input("Aceite de Pedido (Ordem SAP)", value=caso_existente["aceite"] if caso_existente is not None else "")
         with c6:
             data_ordem = st.text_input("Data da Ordem do Pedido", value=caso_existente["data_ordem"] if caso_existente is not None else "")
             data_reparo = st.text_input("Data Reparo Finalizado", value=caso_existente["data_reparo"] if caso_existente is not None else "")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.markdown("#### 🚚 Bloco 3: Devolução & Conclusão")
+        # Bloco 3
+        st.markdown("""
+            <div class="form-section-card">
+                <div style="font-size: 15px; font-weight: 700; color: #4f67e8; margin-bottom: 15px;">🚚 Bloco 3: Devolução & Conclusão</div>
+        """, unsafe_allow_html=True)
+        
         c7, c8 = st.columns(2)
         with c7:
             solic_devol = st.text_input("Solicitação de devolução", value=caso_existente["solic_devol"] if caso_existente is not None else "")
             status_devol = st.text_input("Status de devolução", value=caso_existente["status_devol"] if caso_existente is not None else "")
         with c8:
             status_concl = st.text_input("Status de conclusão", value=caso_existente["status_concl"] if caso_existente is not None else "")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("---")
         submitted = st.form_submit_button("💾 Salvar Dados na Planilha", use_container_width=True)
 
         if submitted:
