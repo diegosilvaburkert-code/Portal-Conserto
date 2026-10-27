@@ -6,6 +6,7 @@ from html import escape as esc
 import gspread
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 # ======================= CONFIGURAÇÃO =======================
 LINK_PLANILHA = "COLE_AQUI_O_LINK_DA_PLANILHA_DE_CONSERTO"
@@ -126,7 +127,7 @@ def avaliar(r):
 
     est = ["ok" if x else "pendente" for x in (p1, p2, p3, p4, p5, p6, p7, p8)]
     if bloq:
-        est[4], est[5] = "bloqueado", "pulado"
+        est[4], est[5] = "bloqueado", "nao_realizado"
     fora = (f("data_reparo") and not (p5 or bloq)) or (f("solic_devol") and not (p6 or bloq))
     aviso = " ⚠️ Há campos preenchidos fora da sequência do fluxo; confira a planilha." if fora else ""
 
@@ -139,7 +140,7 @@ def avaliar(r):
                  f("solic_devol") or _norm(r["status_devol"]) == "devolvido"]
         est = ["ok" if x else "pulado" for x in feito] + ["ok"]
         if reprov:
-            est[4] = "bloqueado"
+            est[4], est[5] = "bloqueado", "nao_realizado"
         nao_feitas = [NOMES_FASES[i] for i in range(1, 7) if est[i] == "pulado"]
         aviso = ""
 
@@ -258,37 +259,44 @@ def compacta(h):
 CSS_TL = """<style>
 .stepper-wrapper{position:relative;display:flex;justify-content:space-between;margin:28px 0 14px}
 .stepper-wrapper::before{content:"";position:absolute;top:15px;left:0;width:100%;height:12px;background:#dbdbdb;border-radius:10px;z-index:1}
-.stepper-line-active{position:absolute;top:15px;left:0;height:12px;background:linear-gradient(90deg,#00c732,#00e63d);border-radius:10px;z-index:2;transition:width .6s}
+.seg{position:absolute;top:15px;height:12px;z-index:2}
 .stepper-item{position:relative;display:flex;flex-direction:column;align-items:center;flex:1;z-index:3}
 .step-counter{width:42px;height:42px;display:flex;justify-content:center;align-items:center;background:#fff;border:4px solid #cbd6e2;border-radius:50%;font-weight:bold;color:#cbd6e2;font-size:17px;box-shadow:0 2px 5px rgba(0,0,0,.1);box-sizing:border-box}
 .step-name{margin-top:8px;font-size:12px;font-weight:600;color:#5c6b73;text-align:center;padding:0 4px}
-.stepper-item.completed .step-counter{background:#00e63d;border-color:#00e63d;color:#fff}
+.stepper-item.completed .step-counter{background:#00d83a;border-color:#00d83a;color:#fff}
 .stepper-item.completed .step-name{color:#1b4f93;font-weight:700}
 .stepper-item.blocked .step-counter{background:#e53935;border-color:#e53935;color:#fff}
 .stepper-item.blocked .step-name{color:#e53935;font-weight:700}
+.stepper-item.warn .step-counter{background:#f5b301;border-color:#f5b301;color:#fff}
+.stepper-item.warn .step-name{color:#b7791f;font-weight:700}
 .stepper-item.skipped .step-counter{background:#e1e9f5;border-color:#c5d3e8;color:#7d8fa8}
 </style>"""
+
+# cor do trecho da barra que CHEGA em cada bolinha (parte do centro da bolinha anterior até o centro desta)
+COR_TRECHO = {"ok": "#00d83a", "bloqueado": "#e53935", "nao_realizado": "#f5b301", "pulado": "#c5d3e8"}
 
 
 def html_timeline(estados):
     n = len(estados)
-    ult = 0
-    for i, e in enumerate(estados):
-        if e == "pendente":
-            break
-        if e in ("ok", "bloqueado"):
-            ult = i + 1
-    largura = 0 if ult == 0 else 100 if ult == n else (ult - 0.5) / n * 100
-    fundo = ""
-    if "bloqueado" in estados and largura:
-        pct = min((estados.index("bloqueado") + 0.5) / n * 100 / largura * 100, 100)
-        fundo = f"background:linear-gradient(90deg,#e53935 {pct:.1f}%,#00c732 {pct:.1f}%,#00e63d 100%);"
+    segs = ""
+    for k, e in enumerate(estados, start=1):
+        cor = COR_TRECHO.get(e)
+        if not cor:
+            continue
+        ini = 0 if k == 1 else (k - 1.5) / n * 100
+        larg = (0.5 if k == 1 else 1) / n * 100 + 0.15
+        raio = "10px 0 0 10px" if k == 1 else "0"
+        segs += f'<div class="seg" style="left:{ini:.3f}%;width:{larg:.3f}%;background:{cor};border-radius:{raio}"></div>'
+    if estados[-1] == "ok":
+        segs += f'<div class="seg" style="left:{(n - 0.5) / n * 100:.3f}%;width:{0.5 / n * 100:.3f}%;background:{COR_TRECHO["ok"]};border-radius:0 10px 10px 0"></div>'
     itens = ""
     for nome, e in zip(NOMES_FASES, estados):
-        cls = {"ok": "completed", "bloqueado": "blocked", "pulado": "skipped", "pendente": ""}[e]
-        ic = {"ok": "✓", "bloqueado": "✕", "pulado": "–", "pendente": ""}[e]
+        cls = {"ok": "completed", "bloqueado": "blocked", "nao_realizado": "warn", "pulado": "skipped", "pendente": ""}[e]
+        ic = {"ok": "✓", "bloqueado": "✕", "nao_realizado": "!", "pulado": "–", "pendente": ""}[e]
+        if e == "nao_realizado":
+            nome = f"{nome} não realizado"
         itens += f'<div class="stepper-item {cls}"><div class="step-counter">{ic}</div><div class="step-name">{nome}</div></div>'
-    return compacta(CSS_TL + f'<div class="stepper-wrapper"><div class="stepper-line-active" style="width:{largura:.2f}%;{fundo}"></div>{itens}</div>')
+    return compacta(CSS_TL + f'<div class="stepper-wrapper">{segs}{itens}</div>')
 
 
 CSS_CARDS = """<style>
@@ -298,7 +306,7 @@ CSS_CARDS = """<style>
 .hb-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#2c3e57;margin-bottom:8px}
 .hb-h em{font-style:normal;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;text-transform:none;letter-spacing:0}
 .hb-h em.ok{background:#e3f6e8;color:#1e8e3e}.hb-h em.bad{background:#fde2e2;color:#c62828}
-.hb-h em.skip{background:#e8edf5;color:#6b7a90}.hb-h em.part{background:#fff3d6;color:#b45309}.hb-h em.pend{background:#eef2f8;color:#6b7a90}
+.hb-h em.skip{background:#e8edf5;color:#6b7a90}.hb-h em.warn{background:#fff3d6;color:#b45309}.hb-h em.part{background:#fff3d6;color:#b45309}.hb-h em.pend{background:#eef2f8;color:#6b7a90}
 .hb-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #e1e9f5;font-size:13px}
 .hb-row:last-child{border-bottom:none}
 .hb-row span{color:#6b7a90}.hb-row b{color:#1b4f93;text-align:right;overflow-wrap:anywhere}.hb-row b.vz{color:#b3bdcc;font-weight:500}
@@ -326,7 +334,9 @@ FASES_CARDS = [
 def _badge(estados, idx):
     s = [estados[i] for i in idx]
     if "bloqueado" in s:
-        return "✕ Bloqueado", "bad"
+        return "✕ Reprovado", "bad"
+    if "nao_realizado" in s:
+        return "⚠ Reparo não realizado", "warn"
     if "pendente" not in s:
         return ("– Não se aplica", "skip") if all(x == "pulado" for x in s) else ("✓ Concluída", "ok")
     if any(x == "ok" for x in s):
@@ -356,21 +366,81 @@ def html_kpis(df):
     return compacta(CSS_CARDS + f'<div class="hb-kpis">{cards}</div>')
 
 
-def html_tabela(df):
-    cols = [("Cliente", "cliente"), ("NF", "nf"), ("CAS-SO-BR", "cas"), ("Recebimento", "data_receb"),
-            ("Dias", "dias"), ("Status", "status"), ("Ordem Status", "ordem_status")]
-    th = "".join(f"<th>{n}</th>" for n, _ in cols)
+_CSS_TAB = """
+body{margin:0;background:transparent;font-family:"Source Sans Pro",Arial,sans-serif;color:#2c3e57}
+.top{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 8px;font-size:13px;color:#6b7a90}
+.top button{border:1px solid #1b4f93;background:#fff;color:#1b4f93;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
+.top button:hover{background:#1b4f93;color:#fff}
+.tb{max-height:600px;overflow:auto;border-radius:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+.hd th{position:sticky;top:0;height:41px;box-sizing:border-box;background:#1b4f93;color:#fff;padding:0 8px;z-index:2;cursor:pointer;user-select:none;white-space:nowrap}
+.hd th:hover{background:#2a62ad}
+.ft td{position:sticky;top:41px;background:#eaf1fb;padding:5px 6px;z-index:2;border-bottom:1px solid #d5e1f2}
+.ft input,.ft select{width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #c5d3e8;border-radius:5px;font-size:12px;background:#fff;color:#2c3e57}
+tbody td{padding:8px;border-bottom:1px solid #e4e9f0;text-align:center}
+"""
+_JS_TAB = """
+const tb=document.querySelector('#t tbody');let rows=[...tb.rows];
+const ths=[...document.querySelectorAll('.hd th')];
+const fls=[...document.querySelectorAll('.ft [data-f]')];
+const cnt=document.getElementById('cnt');let col=-1,dir=1;
+function marcar(){ths.forEach((h,i)=>h.querySelector('i').textContent=i===col?(dir>0?' ▲':' ▼'):'');}
+function filtrar(){let n=0;rows.forEach(r=>{let ok=true;fls.forEach((el,i)=>{const v=el.value.toLowerCase();if(!v)return;
+ const txt=r.cells[i].textContent.trim().toLowerCase();
+ if(el.tagName==='SELECT'?txt!==v:txt.indexOf(v)<0)ok=false;});r.style.display=ok?'':'none';if(ok)n++;});
+ cnt.textContent=n+' de '+rows.length+' caso(s)';}
+function ordenar(i){dir=(col===i)?-dir:1;col=i;const num=ths[i].dataset.t!=='t';
+ rows.sort((a,b)=>{let x=a.cells[i].dataset.v,y=b.cells[i].dataset.v;
+  if(num){x=parseFloat(x);y=parseFloat(y);const nx=isNaN(x),ny=isNaN(y);if(nx&&ny)return 0;if(nx)return 1;if(ny)return -1;return (x-y)*dir;}
+  return x.localeCompare(y,'pt-BR')*dir;});
+ rows.forEach(r=>tb.appendChild(r));marcar();}
+ths.forEach((h,i)=>h.addEventListener('click',()=>ordenar(i)));
+fls.forEach(el=>{el.addEventListener('input',filtrar);el.addEventListener('change',filtrar);});
+document.getElementById('lp').addEventListener('click',()=>{fls.forEach(el=>el.value='');filtrar();});
+col=__DIAS__;dir=-1;marcar();filtrar();
+"""
+
+
+def html_tabela_interativa(df):
+    """Tabela com ordenação por clique no título e filtros por coluna (roda dentro de um iframe)."""
+    cols = [("Cliente", "cliente", "t"), ("NF", "nf", "t"), ("CAS-SO-BR", "cas", "t"), ("Recebimento", "data_receb", "d"),
+            ("Dias", "dias", "n"), ("Status", "status", "t"), ("Status de Conclusão", "status_concl", "t")]
+    regs = df.to_dict("records")
+
+    def texto(r, k):
+        v = r[k]
+        if v is None or (isinstance(v, float) and pd.isna(v)) or v == "":
+            return "-"
+        return f"{int(v)}" if k == "dias" else str(v)
+
+    def chave(r, k, tipo):
+        if tipo == "n":
+            return "" if pd.isna(r[k]) else str(int(r[k]))
+        if tipo == "d":
+            d = parse_data(r[k])
+            return "" if pd.isna(d) else str(d.toordinal())
+        return _norm(texto(r, k))
+
+    th = "".join(f'<th data-t="{t}">{n}<i></i></th>' for n, _, t in cols)
+    fl = ""
+    for n, k, t in cols:
+        vals = sorted({texto(r, k) for r in regs}, key=_norm)
+        if t == "t" and len(vals) <= 25:
+            ops = '<option value="">Todos</option>' + "".join(f'<option value="{esc(v.lower())}">{esc(v)}</option>' for v in vals)
+            fl += f'<td><select data-f>{ops}</select></td>'
+        else:
+            fl += '<td><input data-f type="text" placeholder="Filtrar..."></td>'
     linhas = ""
-    for r in df.to_dict("records"):
+    for r in regs:
         d = r["dias"]
         cor = ("#fde2e2" if d >= ALERTA_VERMELHO_DIAS else "#fff3d6" if d >= ALERTA_AMARELO_DIAS else "") if pd.notna(d) else ""
-        tds = ""
-        for _, k in cols:
-            v = r[k]
-            v = "-" if (v is None or (isinstance(v, float) and pd.isna(v)) or v == "") else (f"{int(v)}" if k == "dias" else v)
-            tds += f"<td>{esc(str(v))}</td>"
+        tds = "".join(f'<td data-v="{esc(chave(r, k, t))}">{esc(texto(r, k))}</td>' for _, k, t in cols)
         linhas += f'<tr style="background:{cor}">{tds}</tr>'
-    return compacta(CSS_CARDS + f'<div class="tb"><table><thead><tr>{th}</tr></thead><tbody>{linhas}</tbody></table></div>')
+    js = _JS_TAB.replace("__DIAS__", str([c[1] for c in cols].index("dias")))
+    return (f'<!DOCTYPE html><html><head><meta charset="utf-8"><style>{_CSS_TAB}</style></head><body>'
+            f'<div class="top"><span id="cnt"></span><button id="lp">Limpar filtros</button></div>'
+            f'<div class="tb"><table id="t"><thead><tr class="hd">{th}</tr><tr class="ft">{fl}</tr></thead>'
+            f'<tbody>{linhas}</tbody></table></div><script>{js}</script></body></html>')
 
 
 def card_aviso(titulo, sub):
@@ -445,17 +515,11 @@ with aba1:
 # -------- 2. EM ANDAMENTO --------
 with aba2:
     st.markdown(html_kpis(casos), unsafe_allow_html=True)
-    f1, f2, f3, f4 = st.columns(4)
-    sel_g = f1.multiselect("Situação", [g for g in COR_GRUPO if g in set(casos["grupo"])])
-    sel_c = f2.multiselect("Cliente", sorted(casos["cliente"].unique()))
-    sel_o = f3.multiselect("Ordem Status", sorted(x for x in casos["ordem_status"].unique() if x))
-    inc = f4.toggle("Incluir concluídos")
+    inc = st.toggle("Incluir casos finalizados")
     v = casos if inc else casos[~casos["concluido"]]
-    if sel_g: v = v[v["grupo"].isin(sel_g)]
-    if sel_c: v = v[v["cliente"].isin(sel_c)]
-    if sel_o: v = v[v["ordem_status"].isin(sel_o)]
-    st.caption(f"{len(v)} caso(s) · amarelo ≥ {ALERTA_AMARELO_DIAS} dias · vermelho ≥ {ALERTA_VERMELHO_DIAS} dias desde o recebimento")
+    st.caption(f"Clique no título de uma coluna para ordenar · use os campos abaixo dos títulos para filtrar · "
+               f"amarelo ≥ {ALERTA_AMARELO_DIAS} dias · vermelho ≥ {ALERTA_VERMELHO_DIAS} dias desde o recebimento")
     v = v.sort_values("dias", ascending=False, na_position="last")
-    st.markdown(html_tabela(v), unsafe_allow_html=True)
+    components.html(html_tabela_interativa(v), height=690, scrolling=False)
 
 st.markdown("Hub de Conserto · Desenvolvido por Diego Elvis", unsafe_allow_html=True)
