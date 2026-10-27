@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ======================= CONFIGURAÇÃO =======================
-LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1rZto32QSflOjbx9Gp9tC9geyrA9WzJ6tIHbX6zAnXsU"
+LINK_PLANILHA = "COLE_AQUI_O_LINK_DA_PLANILHA_DE_CONSERTO"
 NOME_DA_ABA = "Lead Time"
 
 # Regras do fluxo
@@ -289,7 +289,7 @@ def avaliar(r):
             d = "Relatório reprovado: equipamento devolvido sem reparo. Caso finalizado."
         else:
             d = "Caso finalizado."
-            d += (" Etapas não realizadas (desconsideradas): " + ", ".join(nao_feitas) + ".") if nao_feitas                 else " Todas as etapas foram concluídas."
+            d += (" Etapas não realizadas (desconsideradas): " + ", ".join(nao_feitas) + ".") if nao_feitas else " Todas as etapas foram concluídas."
         if r["status_devol"]:
             d += f" Status da devolução: {r['status_devol']}."
         return res("🟢 Finalizado", "Concluído", d)
@@ -347,9 +347,7 @@ def conectar():
     info_json = st.secrets["gspread_credentials"]["json_string"]
     dic_chaves = json.loads(info_json, strict=False)
     if "private_key" in dic_chaves:
-        dic_chaves["private_key"] = dic_chaves["private_key"].replace("\\n", "
-").replace("\n", "
-")
+        dic_chaves["private_key"] = dic_chaves["private_key"].replace("\\\\n", "\n").replace("\\n", "\n")
     return gspread.service_account_from_dict(dic_chaves).open_by_url(LINK_PLANILHA)
 
 
@@ -390,8 +388,7 @@ def ler_casos(valores, hoje):
 
 # ======================= VISUAL (HTML) =======================
 def compacta(h):
-    return "
-".join(l.strip() for l in h.splitlines() if l.strip())
+    return "\n".join(l.strip() for l in h.splitlines() if l.strip())
 
 
 CSS_TL = """<style>
