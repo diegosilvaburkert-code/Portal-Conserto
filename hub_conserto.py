@@ -449,7 +449,47 @@ def card_aviso(titulo, sub):
         <div style="font-size:22px;font-weight:800;color:#b45309;margin-top:8px">{titulo}</div>
         <div style="font-size:15px;color:#5c6b73;margin-top:8px">{sub}</div></div>""")
 
+# ======================= MENU LATERAL =======================
+with st.sidebar:
+    st.markdown("""
+        <div style="text-align:center; padding:20px 0;">
+            <h3 style="color:#315ce8; margin-bottom:5px;">
+                🛠️ HUB DE CONSERTO
+            </h3>
+            <p style="font-size:12px; color:#64748b;">
+                Acompanhamento logístico
+            </p>
+        </div>
+        <hr style="border-color:#e2e8f0;">
+    """, unsafe_allow_html=True)
 
+    pagina = st.radio(
+        "Navegação",
+        [
+            "🔎 Consulta de Equipamento",
+            "📋 Casos em andamento"
+        ],
+        label_visibility="collapsed",
+        key="menu_hub_conserto"
+    )
+
+    st.markdown("""
+        <div style="
+            position:fixed;
+            bottom:20px;
+            left:20px;
+            width:200px;
+            color:#16a34a;
+            font-size:12px;
+            padding:10px;
+            background:#f0fdf4;
+            border-radius:8px;
+            text-align:center;
+        ">
+            🟢 Conexão Estabelecida
+        </div>
+    """, unsafe_allow_html=True)
+    
 # ======================= TELA =======================
 st.markdown("""
     <div class="header-banner">
@@ -465,19 +505,12 @@ except Exception as e:
     st.error(f"Erro ao conectar com a planilha: {e}")
     st.stop()
 
-c1, c2 = st.columns([6, 1])
-c1.success("Conexão estabelecida com a planilha de Conserto!")
-if c2.button("🔄 Atualizar"):
-    st.cache_data.clear()
-    st.rerun()
 if ausentes:
     st.warning("Não encontrei no cabeçalho da planilha as colunas: " + ", ".join(ausentes)
                + ". Confira se os nomes não foram alterados.")
 
-aba1, aba2 = st.tabs(["🔎 Consulta de Equipamento", "📋 Casos em andamento"])
-
 # -------- 1. CONSULTA --------
-with aba1:
+if pagina == "🔎 Consulta de Equipamento":
     _, mid, _ = st.columns([1, 6, 1])
     with mid:
         st.write("Digite o nº da Nota Fiscal, CAS-SO-BR, Service Notification ou parte do nome do cliente.")
@@ -513,7 +546,7 @@ with aba1:
                 st.markdown(html_cards(r, av["estados"]), unsafe_allow_html=True)
 
 # -------- 2. EM ANDAMENTO --------
-with aba2:
+elif pagina == "📋 Casos em andamento":
     st.markdown(html_kpis(casos), unsafe_allow_html=True)
     inc = st.toggle("Incluir casos finalizados")
     v = casos if inc else casos[~casos["concluido"]]
