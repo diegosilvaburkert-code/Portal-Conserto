@@ -12,60 +12,89 @@ import streamlit.components.v1 as components
 LINK_PLANILHA = "COLE_AQUI_O_LINK_DA_PLANILHA_DE_CONSERTO"
 NOME_DA_ABA = "Lead Time"
 
-# Regras do fluxo (ajuste aqui se a regra do seu processo for diferente)
+# Regras do fluxo
 APROVACOES_OK = {"aprovado", "cortesia", "garantia"}      # relatório aprovado -> segue para reparo
 APROVACOES_REPROVADAS = {"reprovado"}                      # relatório reprovado -> sem reparo, vai para devolução
 APROVACOES_SEM_PEDIDO = {"cortesia", "garantia"}           # não exigem Aceite de Pedido (Ordem SAP)
-CONCLUIDOS = {"concluido", "finalizado"}                   # "Status de conclusão" que ENCERRA o caso, mesmo com etapas não realizadas
+CONCLUIDOS = {"concluido", "finalizado"}                   # "Status de conclusão" que ENCERRA o caso
 ALERTA_AMARELO_DIAS = 30                                   # dias desde o recebimento
 ALERTA_VERMELHO_DIAS = 60
 
 st.set_page_config(page_title="Hub de Conserto", page_icon="🛠️", layout="wide")
 
+# ======================= ESTILOS CSS (PADRÃO LOGÍSTICA / PIONEERS) =======================
 st.markdown("""
     <style>
-        .stApp { background-color: #e6effa; }
+        :root{--azul:#7c93fb;--azul-esc:#4f67e8;--rosa:#f06aa8}
+        .stApp{background:linear-gradient(135deg,#f0f3ff 0%,#e3e9fd 100%)}
+        header[data-testid="stHeader"]{background:transparent}
+        .block-container{padding-top:1.6rem;max-width:1500px}
+        .header-banner{background:linear-gradient(110deg,#8aa0ff,#4f67e8);border-radius:22px;padding:28px;
+            box-shadow:0 14px 32px rgba(79,103,232,.30)}
+        .stAlert{border-radius:16px}
+
+        /* ===== MENU LATERAL FIXO (sempre aberto) ===== */
+        section[data-testid="stSidebar"]{
+            width:270px!important;min-width:270px!important;max-width:270px!important;
+            transform:none!important;visibility:visible!important;
+            background:#ffffff;border-radius:0 26px 26px 0;box-shadow:8px 0 30px rgba(79,103,232,.14);
+            position: relative !important;
+        }
+        [data-testid="stSidebarCollapseButton"],[data-testid="stSidebarCollapsedControl"],
+        [data-testid="collapsedControl"],[data-testid="stSidebarResizeHandle"]{display:none!important}
+        [data-testid="stSidebarUserContent"]{padding:1.2rem 1rem 3.5rem 1rem!important}
+
+        .sb-logo{display:flex;align-items:center;gap:12px;padding:4px 10px 20px;white-space:nowrap;
+            font-size:26px;border-bottom:1px solid #e8edfb;margin-bottom:16px}
+        .sb-logo span{font-size:12px;font-weight:800;letter-spacing:1.6px;line-height:1.25;color:#4f67e8}
+
+        section[data-testid="stSidebar"] .stButton{margin-bottom:6px}
+        section[data-testid="stSidebar"] .stButton button{
+            width:100%;justify-content:flex-start;border:none;border-radius:14px;
+            padding:.75rem 1rem;background:transparent;box-shadow:none;transition:background .2s}
+        .stApp section[data-testid="stSidebar"] .stButton button p{
+            text-align:left!important;font-size:15px;font-weight:600;color:#5b6b8c;margin:0}
+        section[data-testid="stSidebar"] .stButton button:hover{background:#eef1ff}
+        section[data-testid="stSidebar"] .stButton button[kind="primary"],
+        section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"]{
+            background:linear-gradient(90deg,#8aa0ff,#4f67e8);box-shadow:0 8px 18px rgba(79,103,232,.32)}
+        .stApp section[data-testid="stSidebar"] .stButton button[kind="primary"] p,
+        .stApp section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] p{color:#fff}
+        
+        /* Container Customizado do Status de Conexão na Sidebar */
+        .sidebar-status-container {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background-color: #d1e7dd;
+            color: #0f5132;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid #badbcc;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* Centralizações gerais */
         .stApp h2, .stApp h3, .stApp h4, .stApp p, .stMarkdown p { text-align: center !important; }
         .stAlert { border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center !important; }
-        .stAlert > div { justify-content: center !important; text-align: center !important; }
         [data-testid="stWidgetLabel"] { text-align: center !important; display: block !important; width: 100% !important; }
         [data-testid="stTextInput"] div[data-baseweb="input"] { max-width: 560px !important; margin: 0 auto !important; }
         [data-testid="stTextInput"] input { text-align: center !important; }
-        div[data-baseweb="tab-list"], [data-testid="stTabs"] [role="tablist"] { justify-content: center !important; }
-        .header-banner { background: linear-gradient(90deg, #4f83cc, #1b4f93); padding: 25px; border-radius: 10px;
-            color: white; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .header-banner { background: linear-gradient(110deg,#8aa0ff,#4f67e8); padding: 25px; border-radius: 22px;
+            color: white; text-align: center; margin-bottom: 20px; box-shadow: 0 14px 32px rgba(79,103,232,.30); }
         .header-banner h1 { color: white !important; font-size: 24px !important; margin: 0 !important;
             letter-spacing: 1px; font-weight: 700; text-align: center !important; }
         .header-banner p { margin: 5px 0 0 0 !important; font-size: 14px; opacity: 0.9; text-align: center !important; }
-        /* Barra lateral branca com cantos arredondados */
-[data-testid="stSidebar"] {
-    background-color: #ffffff !important;
-    border-radius: 0 26px 26px 0 !important;
-    box-shadow: 4px 0 18px rgba(79, 108, 240, 0.10);
-    overflow: hidden;
-}
-
-/* Espaçamento interno do menu */
-[data-testid="stSidebar"] > div:first-child {
-    padding: 22px 16px 20px 16px;
-}
-
-/* Fundo principal azul-claro */
-.stApp {
-    background-color: #e6effa;
-}
-
-/* Aparência dos textos do menu */
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] label {
-    color: #334155;
-}
     </style>
 """, unsafe_allow_html=True)
 
 
 # ======================= COLUNAS DA PLANILHA =======================
-# chave: (termos que devem aparecer no cabeçalho, posição padrão caso o cabeçalho não seja encontrado)
 CAMPOS = {
     "ordem_status": (("ordem", "status"), 0),
     "cliente": (("nome", "cliente"), 1),
@@ -110,7 +139,6 @@ def _norm(t):
 
 
 def parse_data(s):
-    """Lê datas como '8-jan.-26' ou '08/04/2026'. Anos antes de 2020 são tratados como erro de digitação."""
     s = str(s).strip().lower()
     if not s:
         return pd.NaT
@@ -129,7 +157,6 @@ def parse_data(s):
 
 # ======================= REGRAS DO FLUXO =======================
 def avaliar(r):
-    """Fluxo sequencial em 8 fases. Cada fase só é 'ok' se as anteriores também estiverem."""
     f = lambda k: bool(r[k])
     falta = lambda ks: [LABEL[k] for k in ks if not r[k]]
     ap = _norm(r["aprovacao"])
@@ -154,10 +181,8 @@ def avaliar(r):
     fora = (f("data_reparo") and not (p5 or bloq)) or (f("solic_devol") and not (p6 or bloq))
     aviso = " ⚠️ Há campos preenchidos fora da sequência do fluxo; confira a planilha." if fora else ""
 
-    # Status de conclusão = Finalizado/Concluído encerra o caso: as etapas não realizadas são desconsideradas
     final = p1 and concl
     if final:
-        # cada etapa vale pelo que está preenchida nela; o que não foi feito vira "–" (desconsiderado)
         feito = [p1, not falta(req2), not falta(req3), f("data_verif"), ap in APROVACOES_OK,
                  f("data_reparo") and (dispensa or f("aceite")),
                  f("solic_devol") or _norm(r["status_devol"]) == "devolvido"]
@@ -245,7 +270,7 @@ def ler_valores():
 
 
 def ler_casos(valores, hoje):
-    ini, cab = 4, None  # padrão: cabeçalho na linha 4
+    ini, cab = 4, None
     for i, l in enumerate(valores[:20]):
         t = _norm(" ".join(l))
         if "nome do cliente" in t and "nota fiscal" in t:
@@ -287,7 +312,7 @@ CSS_TL = """<style>
 .step-counter{width:42px;height:42px;display:flex;justify-content:center;align-items:center;background:#fff;border:4px solid #cbd6e2;border-radius:50%;font-weight:bold;color:#cbd6e2;font-size:17px;box-shadow:0 2px 5px rgba(0,0,0,.1);box-sizing:border-box}
 .step-name{margin-top:8px;font-size:12px;font-weight:600;color:#5c6b73;text-align:center;padding:0 4px}
 .stepper-item.completed .step-counter{background:#00d83a;border-color:#00d83a;color:#fff}
-.stepper-item.completed .step-name{color:#1b4f93;font-weight:700}
+.stepper-item.completed .step-name{color:#4f67e8;font-weight:700}
 .stepper-item.blocked .step-counter{background:#e53935;border-color:#e53935;color:#fff}
 .stepper-item.blocked .step-name{color:#e53935;font-weight:700}
 .stepper-item.warn .step-counter{background:#f5b301;border-color:#f5b301;color:#fff}
@@ -295,7 +320,6 @@ CSS_TL = """<style>
 .stepper-item.skipped .step-counter{background:#e1e9f5;border-color:#c5d3e8;color:#7d8fa8}
 </style>"""
 
-# cor do trecho da barra que CHEGA em cada bolinha (parte do centro da bolinha anterior até o centro desta)
 COR_TRECHO = {"ok": "#00d83a", "bloqueado": "#e53935", "nao_realizado": "#f5b301", "pulado": "#c5d3e8"}
 
 
@@ -325,23 +349,19 @@ def html_timeline(estados):
 CSS_CARDS = """<style>
 .hb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
 @media(max-width:900px){.hb-grid{grid-template-columns:1fr}}
-.hb-card{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 3px 10px rgba(27,79,147,.10);border-top:5px solid #4f83cc;text-align:left}
+.hb-card{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 3px 10px rgba(79,103,232,.10);border-top:5px solid #4f67e8;text-align:left}
 .hb-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#2c3e57;margin-bottom:8px}
 .hb-h em{font-style:normal;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;text-transform:none;letter-spacing:0}
 .hb-h em.ok{background:#e3f6e8;color:#1e8e3e}.hb-h em.bad{background:#fde2e2;color:#c62828}
 .hb-h em.skip{background:#e8edf5;color:#6b7a90}.hb-h em.warn{background:#fff3d6;color:#b45309}.hb-h em.part{background:#fff3d6;color:#b45309}.hb-h em.pend{background:#eef2f8;color:#6b7a90}
 .hb-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #e1e9f5;font-size:13px}
 .hb-row:last-child{border-bottom:none}
-.hb-row span{color:#6b7a90}.hb-row b{color:#1b4f93;text-align:right;overflow-wrap:anywhere}.hb-row b.vz{color:#b3bdcc;font-weight:500}
+.hb-row span{color:#6b7a90}.hb-row b{color:#4f67e8;text-align:right;overflow-wrap:anywhere}.hb-row b.vz{color:#b3bdcc;font-weight:500}
 .hb-chips{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
-.hb-chip{background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;color:#2c3e57;box-shadow:0 2px 6px rgba(27,79,147,.10)}
+.hb-chip{background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;color:#2c3e57;box-shadow:0 2px 6px rgba(79,103,232,.10)}
 .hb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:8px 0 14px}
-.hb-kpi{background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:0 3px 10px rgba(27,79,147,.10);border-top:5px solid #4f83cc}
-.hb-kpi .n{font-size:30px;font-weight:700;color:#1b4f93;line-height:1.1}.hb-kpi .l{font-size:12px;color:#6b7a90;margin-top:2px}
-.tb{max-height:620px;overflow:auto;border-radius:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
-.tb table{width:100%;border-collapse:collapse;font-size:14px}
-.tb th{position:sticky;top:0;background:#1b4f93;color:#fff;padding:10px 8px;z-index:1;text-align:center}
-.tb td{padding:8px;border-bottom:1px solid #e4e9f0;text-align:center}
+.hb-kpi{background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:0 3px 10px rgba(79,103,232,.10);border-top:5px solid #4f67e8}
+.hb-kpi .n{font-size:30px;font-weight:700;color:#4f67e8;line-height:1.1}.hb-kpi .l{font-size:12px;color:#6b7a90;margin-top:2px}
 </style>"""
 
 FASES_CARDS = [
@@ -382,7 +402,7 @@ def html_cards(r, estados):
 def html_kpis(df):
     abertos = df[~df["concluido"]]
     cont = abertos["grupo"].value_counts()
-    cards = f'<div class="hb-kpi" style="border-top-color:#1b4f93"><div class="n">{len(abertos)}</div><div class="l">Em andamento</div></div>'
+    cards = f'<div class="hb-kpi" style="border-top-color:#4f67e8"><div class="n">{len(abertos)}</div><div class="l">Em andamento</div></div>'
     for g in COR_GRUPO:
         if cont.get(g, 0):
             cards += f'<div class="hb-kpi" style="border-top-color:{COR_GRUPO[g]}"><div class="n">{int(cont[g])}</div><div class="l">{g}</div></div>'
@@ -392,12 +412,12 @@ def html_kpis(df):
 _CSS_TAB = """
 body{margin:0;background:transparent;font-family:"Source Sans Pro",Arial,sans-serif;color:#2c3e57}
 .top{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 8px;font-size:13px;color:#6b7a90}
-.top button{border:1px solid #1b4f93;background:#fff;color:#1b4f93;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
-.top button:hover{background:#1b4f93;color:#fff}
+.top button{border:1px solid #4f67e8;background:#fff;color:#4f67e8;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
+.top button:hover{background:#4f67e8;color:#fff}
 .tb{max-height:600px;overflow:auto;border-radius:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 table{width:100%;border-collapse:collapse;font-size:14px}
-.hd th{position:sticky;top:0;height:41px;box-sizing:border-box;background:#1b4f93;color:#fff;padding:0 8px;z-index:2;cursor:pointer;user-select:none;white-space:nowrap}
-.hd th:hover{background:#2a62ad}
+.hd th{position:sticky;top:0;height:41px;box-sizing:border-box;background:#4f67e8;color:#fff;padding:0 8px;z-index:2;cursor:pointer;user-select:none;white-space:nowrap}
+.hd th:hover{background:#3b52c4}
 .ft td{position:sticky;top:41px;background:#eaf1fb;padding:5px 6px;z-index:2;border-bottom:1px solid #d5e1f2}
 .ft input,.ft select{width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #c5d3e8;border-radius:5px;font-size:12px;background:#fff;color:#2c3e57}
 tbody td{padding:8px;border-bottom:1px solid #e4e9f0;text-align:center}
@@ -425,7 +445,6 @@ col=__DIAS__;dir=-1;marcar();filtrar();
 
 
 def html_tabela_interativa(df):
-    """Tabela com ordenação por clique no título e filtros por coluna (roda dentro de um iframe)."""
     cols = [("Cliente", "cliente", "t"), ("NF", "nf", "t"), ("CAS-SO-BR", "cas", "t"), ("Recebimento", "data_receb", "d"),
             ("Dias", "dias", "n"), ("Status", "status", "t"), ("Status de Conclusão", "status_concl", "t")]
     regs = df.to_dict("records")
@@ -472,55 +491,8 @@ def card_aviso(titulo, sub):
         <div style="font-size:22px;font-weight:800;color:#b45309;margin-top:8px">{titulo}</div>
         <div style="font-size:15px;color:#5c6b73;margin-top:8px">{sub}</div></div>""")
 
-# ======================= MENU LATERAL =======================
-with st.sidebar:
-    st.markdown("""
-        <div style="text-align:center; padding:20px 0;">
-            <h3 style="color:#315ce8; margin-bottom:5px;">
-                🛠️ HUB DE CONSERTO
-            </h3>
-            <p style="font-size:12px; color:#64748b;">
-                Acompanhamento logístico
-            </p>
-        </div>
-        <hr style="border-color:#e2e8f0;">
-    """, unsafe_allow_html=True)
 
-    pagina = st.radio(
-        "Navegação",
-        [
-            "🔎 Consulta de Equipamento",
-            "📋 Casos em andamento"
-        ],
-        label_visibility="collapsed",
-        key="menu_hub_conserto"
-    )
-
-    st.markdown("""
-        <div style="
-            position:fixed;
-            bottom:20px;
-            left:20px;
-            width:200px;
-            color:#16a34a;
-            font-size:12px;
-            padding:10px;
-            background:#f0fdf4;
-            border-radius:8px;
-            text-align:center;
-        ">
-            🟢 Conexão Estabelecida
-        </div>
-    """, unsafe_allow_html=True)
-    
-# ======================= TELA =======================
-st.markdown("""
-    <div class="header-banner">
-        <h1>HUB DE CONSERTO</h1>
-        <p>Acompanhamento de equipamentos em reparo — do registro à devolução</p>
-    </div>
-""", unsafe_allow_html=True)
-
+# ======================= CARREGAMENTO DE DADOS =======================
 hoje = pd.Timestamp.today().normalize()
 try:
     casos, ausentes = ler_casos(ler_valores(), hoje)
@@ -528,12 +500,46 @@ except Exception as e:
     st.error(f"Erro ao conectar com a planilha: {e}")
     st.stop()
 
+
+# ======================= NAVEGAÇÃO LATERAL (SIDEBAR) =======================
+chaves = ["consulta", "casos"]
+nomes = ["🔎 Consulta de Equipamento", "📋 Casos em andamento"]
+
+if "pagina_conserto" not in st.session_state:
+    st.session_state["pagina_conserto"] = "consulta"
+
+with st.sidebar:
+    st.markdown('<div class="sb-logo">🛠️<span>HUB DE<br>CONSERTO</span></div>', unsafe_allow_html=True)
+    for _k, _n in zip(chaves, nomes):
+        _ativo = st.session_state["pagina_conserto"] == _k
+        if st.button(_n, key=f"nav_{_k}", use_container_width=True, type="primary" if _ativo else "secondary"):
+            st.session_state["pagina_conserto"] = _k
+            st.rerun()
+    st.markdown(
+        '<div class="sidebar-status-container">🟢 Conexão Estabelecida</div>',
+        unsafe_allow_html=True
+    )
+
+pagina = st.session_state["pagina_conserto"]
+
+
+# ======================= CABEÇALHO DA PÁGINA =======================
+st.markdown("""
+    <div class="header-banner">
+        <h1>HUB DE CONSERTO</h1>
+        <p>Acompanhamento de equipamentos em reparo — do registro à devolução</p>
+    </div>
+""", unsafe_allow_html=True)
+
 if ausentes:
     st.warning("Não encontrei no cabeçalho da planilha as colunas: " + ", ".join(ausentes)
                + ". Confira se os nomes não foram alterados.")
 
+
+# ======================= CONTEÚDO DAS PÁGINAS =======================
+
 # -------- 1. CONSULTA --------
-if pagina == "🔎 Consulta de Equipamento":
+if pagina == "consulta":
     _, mid, _ = st.columns([1, 6, 1])
     with mid:
         st.write("Digite o nº da Nota Fiscal, CAS-SO-BR, Service Notification ou parte do nome do cliente.")
@@ -568,8 +574,8 @@ if pagina == "🔎 Consulta de Equipamento":
                 st.markdown("### 🔍 Detalhes por etapa:")
                 st.markdown(html_cards(r, av["estados"]), unsafe_allow_html=True)
 
-# -------- 2. EM ANDAMENTO --------
-elif pagina == "📋 Casos em andamento":
+# -------- 2. CASOS EM ANDAMENTO --------
+elif pagina == "casos":
     st.markdown(html_kpis(casos), unsafe_allow_html=True)
     inc = st.toggle("Incluir casos finalizados")
     v = casos if inc else casos[~casos["concluido"]]
@@ -578,4 +584,4 @@ elif pagina == "📋 Casos em andamento":
     v = v.sort_values("dias", ascending=False, na_position="last")
     components.html(html_tabela_interativa(v), height=690, scrolling=False)
 
-st.markdown("Hub de Conserto · Desenvolvido por Diego Elvis", unsafe_allow_html=True)
+st.markdown("<br><hr><div style='text-align: center; color: #6b7a90; font-size: 13px;'>Hub de Conserto · Desenvolvido por Diego Elvis</div>", unsafe_allow_html=True)
