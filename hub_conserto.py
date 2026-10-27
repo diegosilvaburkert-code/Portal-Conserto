@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ======================= CONFIGURAÇÃO =======================
-LINK_PLANILHA = "COLE_AQUI_O_LINK_DA_PLANILHA_DE_CONSERTO"
+LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1rZto32QSflOjbx9Gp9tC9geyrA9WzJ6tIHbX6zAnXsU"
 NOME_DA_ABA = "Lead Time"
 
 # Regras do fluxo
