@@ -37,6 +37,29 @@ st.markdown("""
         .header-banner h1 { color: white !important; font-size: 24px !important; margin: 0 !important;
             letter-spacing: 1px; font-weight: 700; text-align: center !important; }
         .header-banner p { margin: 5px 0 0 0 !important; font-size: 14px; opacity: 0.9; text-align: center !important; }
+        /* Barra lateral branca com cantos arredondados */
+[data-testid="stSidebar"] {
+    background-color: #ffffff !important;
+    border-radius: 0 26px 26px 0 !important;
+    box-shadow: 4px 0 18px rgba(79, 108, 240, 0.10);
+    overflow: hidden;
+}
+
+/* Espaçamento interno do menu */
+[data-testid="stSidebar"] > div:first-child {
+    padding: 22px 16px 20px 16px;
+}
+
+/* Fundo principal azul-claro */
+.stApp {
+    background-color: #e6effa;
+}
+
+/* Aparência dos textos do menu */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] label {
+    color: #334155;
+}
     </style>
 """, unsafe_allow_html=True)
 
