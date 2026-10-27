@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ======================= CONFIGURAÇÃO =======================
-LINK_PLANILHA = "COLE_AQUI_O_LINK_DA_PLANILHA_DE_CONSERTO"
+LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1rZto32QSflOjbx9Gp9tC9geyrA9WzJ6tIHbX6zAnXsU"
 NOME_DA_ABA = "Lead Time"
 
 # Regras do fluxo
@@ -22,74 +22,126 @@ ALERTA_VERMELHO_DIAS = 60
 
 st.set_page_config(page_title="Hub de Conserto", page_icon="🛠️", layout="wide")
 
-# ======================= ESTILOS CSS (PADRÃO LOGÍSTICA / PIONEERS) =======================
-st.markdown("""
-    <style>
-        :root{--azul:#7c93fb;--azul-esc:#4f67e8;--rosa:#f06aa8}
-        .stApp{background:linear-gradient(135deg,#f0f3ff 0%,#e3e9fd 100%)}
-        header[data-testid="stHeader"]{background:transparent}
-        .block-container{padding-top:1.6rem;max-width:1500px}
-        .header-banner{background:linear-gradient(110deg,#8aa0ff,#4f67e8);border-radius:22px;padding:28px;
-            box-shadow:0 14px 32px rgba(79,103,232,.30)}
-        .stAlert{border-radius:16px}
+# ======================= CONTROLE DE EXPANSÃO DA SIDEBAR =======================
+if "sidebar_expanded" not in st.session_state:
+    st.session_state["sidebar_expanded"] = True
 
-        /* ===== MENU LATERAL FIXO (sempre aberto) ===== */
-        section[data-testid="stSidebar"]{
-            width:270px!important;min-width:270px!important;max-width:270px!important;
+sb_width = "270px" if st.session_state["sidebar_expanded"] else "80px"
+
+# ======================= ESTILOS CSS (PADRÃO LOGÍSTICA / PIONEERS) =======================
+st.markdown(f"""
+    <style>
+        :root{{--azul:#7c93fb;--azul-esc:#4f67e8;--rosa:#f06aa8}}
+        .stApp{{background:linear-gradient(135deg,#f0f3ff 0%,#e3e9fd 100%)}}
+        header[data-testid="stHeader"]{{background:transparent}}
+        .block-container{{padding-top:1.6rem;max-width:1500px}}
+        .header-banner{{background:linear-gradient(110deg,#8aa0ff,#4f67e8);border-radius:22px;padding:28px;
+            box-shadow:0 14px 32px rgba(79,103,232,.30)}}
+        .stAlert{{border-radius:16px}}
+
+        /* ===== MENU LATERAL RETRÁTIL ===== */
+        section[data-testid="stSidebar"]{{
+            width:{sb_width}!important;min-width:{sb_width}!important;max-width:{sb_width}!important;
             transform:none!important;visibility:visible!important;
             background:#ffffff;border-radius:0 26px 26px 0;box-shadow:8px 0 30px rgba(79,103,232,.14);
             position: relative !important;
-        }
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }}
         [data-testid="stSidebarCollapseButton"],[data-testid="stSidebarCollapsedControl"],
-        [data-testid="collapsedControl"],[data-testid="stSidebarResizeHandle"]{display:none!important}
-        [data-testid="stSidebarUserContent"]{padding:1.2rem 1rem 3.5rem 1rem!important}
+        [data-testid="collapsedControl"],[data-testid="stSidebarResizeHandle"]{{display:none!important}}
+        [data-testid="stSidebarUserContent"]{{padding:1.2rem 0.8rem 3.5rem 0.8rem!important}}
 
-        .sb-logo{display:flex;align-items:center;gap:12px;padding:4px 10px 20px;white-space:nowrap;
-            font-size:26px;border-bottom:1px solid #e8edfb;margin-bottom:16px}
-        .sb-logo span{font-size:12px;font-weight:800;letter-spacing:1.6px;line-height:1.25;color:#4f67e8}
+        /* Header da Sidebar com botão no topo */
+        .sb-header-wrapper {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 6px 16px 6px;
+            border-bottom: 1px solid #e8edfb;
+            margin-bottom: 16px;
+        }}
+        .sb-logo {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            font-size: 24px;
+        }}
+        .sb-logo span {{
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1.4px;
+            line-height: 1.25;
+            color: #4f67e8;
+        }}
 
-        section[data-testid="stSidebar"] .stButton{margin-bottom:6px}
-        section[data-testid="stSidebar"] .stButton button{
-            width:100%;justify-content:flex-start;border:none;border-radius:14px;
-            padding:.75rem 1rem;background:transparent;box-shadow:none;transition:background .2s}
-        .stApp section[data-testid="stSidebar"] .stButton button p{
-            text-align:left!important;font-size:15px;font-weight:600;color:#5b6b8c;margin:0}
-        section[data-testid="stSidebar"] .stButton button:hover{background:#eef1ff}
+        /* Botões do Menu */
+        section[data-testid="stSidebar"] .stButton {{
+            margin-bottom: 6px;
+        }}
+        section[data-testid="stSidebar"] .stButton button {{
+            width: 100%;
+            justify-content: {"flex-start" if st.session_state["sidebar_expanded"] else "center"};
+            border: none;
+            border-radius: 14px;
+            padding: 0.75rem 0.8rem;
+            background: transparent;
+            box-shadow: none;
+            transition: background 0.2s, color 0.2s;
+        }}
+        .stApp section[data-testid="stSidebar"] .stButton button p {{
+            text-align: {"left" if st.session_state["sidebar_expanded"] else "center"}!important;
+            font-size: 15px;
+            font-weight: 600;
+            color: #5b6b8c;
+            margin: 0;
+            white-space: nowrap;
+        }}
+        section[data-testid="stSidebar"] .stButton button:hover {{
+            background: #eef1ff;
+        }}
         section[data-testid="stSidebar"] .stButton button[kind="primary"],
-        section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"]{
-            background:linear-gradient(90deg,#8aa0ff,#4f67e8);box-shadow:0 8px 18px rgba(79,103,232,.32)}
+        section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{
+            background: linear-gradient(90deg,#8aa0ff,#4f67e8);
+            box-shadow: 0 8px 18px rgba(79,103,232,.32);
+        }}
         .stApp section[data-testid="stSidebar"] .stButton button[kind="primary"] p,
-        .stApp section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] p{color:#fff}
+        .stApp section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] p {{
+            color: #fff;
+        }}
         
         /* Container Customizado do Status de Conexão na Sidebar */
-        .sidebar-status-container {
+        .sidebar-status-container {{
             position: absolute;
-            bottom: -500px;
-            left: 20px;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
             background-color: #d1e7dd;
             color: #0f5132;
-            padding: 4px 10px;
+            padding: 4px {"10px" if st.session_state["sidebar_expanded"] else "6px"};
             border-radius: 8px;
             font-size: 11px;
             font-weight: 700;
             border: 1px solid #badbcc;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 5px;
-        }
+            white-space: nowrap;
+        }}
         
         /* Centralizações gerais */
-        .stApp h2, .stApp h3, .stApp h4, .stApp p, .stMarkdown p { text-align: center !important; }
-        .stAlert { border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center !important; }
-        [data-testid="stWidgetLabel"] { text-align: center !important; display: block !important; width: 100% !important; }
-        [data-testid="stTextInput"] div[data-baseweb="input"] { max-width: 560px !important; margin: 0 auto !important; }
-        [data-testid="stTextInput"] input { text-align: center !important; }
+        .stApp h2, .stApp h3, .stApp h4, .stApp p, .stMarkdown p {{ text-align: center !important; }}
+        .stAlert {{ border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center !important; }}
+        [data-testid="stWidgetLabel"] {{ text-align: center !important; display: block !important; width: 100% !important; }}
+        [data-testid="stTextInput"] div[data-baseweb="input"] {{ max-width: 560px !important; margin: 0 auto !important; }}
+        [data-testid="stTextInput"] input {{ text-align: center !important; }}
         
-        .header-banner { background: linear-gradient(110deg,#8aa0ff,#4f67e8); padding: 25px; border-radius: 22px;
-            color: white; text-align: center; margin-bottom: 20px; box-shadow: 0 14px 32px rgba(79,103,232,.30); }
-        .header-banner h1 { color: white !important; font-size: 24px !important; margin: 0 !important;
-            letter-spacing: 1px; font-weight: 700; text-align: center !important; }
-        .header-banner p { margin: 5px 0 0 0 !important; font-size: 14px; opacity: 0.9; text-align: center !important; }
+        .header-banner {{ background: linear-gradient(110deg,#8aa0ff,#4f67e8); padding: 25px; border-radius: 22px;
+            color: white; text-align: center; margin-bottom: 20px; box-shadow: 0 14px 32px rgba(79,103,232,.30); }}
+        .header-banner h1 {{ color: white !important; font-size: 24px !important; margin: 0 !important;
+            letter-spacing: 1px; font-weight: 700; text-align: center !important; }}
+        .header-banner p {{ margin: 5px 0 0 0 !important; font-size: 14px; opacity: 0.9; text-align: center !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -501,22 +553,43 @@ except Exception as e:
     st.stop()
 
 
-# ======================= NAVEGAÇÃO LATERAL (SIDEBAR) =======================
+# ======================= NAVEGAÇÃO LATERAL (SIDEBAR RETRÁTIL) =======================
 chaves = ["consulta", "casos"]
-nomes = ["🔎 Consulta de Equipamento", "📋 Casos em andamento"]
+icones = ["🔎", "📋"]
+rotulos_completos = ["🔎 Consulta de Equipamento", "📋 Casos em andamento"]
 
 if "pagina_conserto" not in st.session_state:
     st.session_state["pagina_conserto"] = "consulta"
 
 with st.sidebar:
-    st.markdown('<div class="sb-logo">🛠️<span>HUB DE<br>CONSERTO</span></div>', unsafe_allow_html=True)
-    for _k, _n in zip(chaves, nomes):
+    # Header da Sidebar contendo Logo e Botão de Alternância (Toggle)
+    expanded = st.session_state["sidebar_expanded"]
+    c_logo, c_btn = st.columns([4, 1] if expanded else [1, 5])
+    
+    with c_logo:
+        if expanded:
+            st.markdown('<div class="sb-logo">🛠️<span>HUB DE<br>CONSERTO</span></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="font-size:24px; text-align:center; margin-bottom:10px;">🛠️</div>', unsafe_allow_html=True)
+            
+    with c_btn:
+        toggle_label = "◀" if expanded else "▶"
+        if st.button(toggle_label, key="toggle_sidebar_btn", help="Expandir / Recolher Menu"):
+            st.session_state["sidebar_expanded"] = not st.session_state["sidebar_expanded"]
+            st.rerun()
+
+    # Botões de Navegação adaptativos aos dois estados (Expandido / Recolhido)
+    for _k, _ic, _lbl in zip(chaves, icones, rotulos_completos):
         _ativo = st.session_state["pagina_conserto"] == _k
-        if st.button(_n, key=f"nav_{_k}", use_container_width=True, type="primary" if _ativo else "secondary"):
+        _texto_botao = _lbl if expanded else _ic
+        if st.button(_texto_botao, key=f"nav_{_k}", use_container_width=True, type="primary" if _ativo else "secondary"):
             st.session_state["pagina_conserto"] = _k
             st.rerun()
+
+    # Indicador de Conexão na Sidebar
+    status_text = "🟢 Conexão Estabelecida" if expanded else "🟢"
     st.markdown(
-        '<div class="sidebar-status-container">🟢 Conexão Estabelecida</div>',
+        f'<div class="sidebar-status-container">{status_text}</div>',
         unsafe_allow_html=True
     )
 
