@@ -64,7 +64,7 @@ st.markdown("""
         /* Container Customizado do Status de Conexão na Sidebar */
         .sidebar-status-container {
             position: absolute;
-            bottom: -600px;
+            bottom: -500px;
             left: 20px;
             background-color: #d1e7dd;
             color: #0f5132;
