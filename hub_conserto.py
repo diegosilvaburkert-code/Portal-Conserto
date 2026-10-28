@@ -13,10 +13,6 @@ import streamlit.components.v1 as components
 LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1rZto32QSflOjbx9Gp9tC9geyrA9WzJ6tIHbX6zAnXsU"
 NOME_DA_ABA = "Lead Time"
 
-# Link da Planilha da Logística para integração bidirecional
-LINK_PLANILHA_LOGISTICA = "https://google.com/spreadsheets/d/1cYhrFo_JVrTqtaxHXqiKc_gOl-En0FEYfpVs-58e9S0/edit?gid=0#gid=0"
-NOME_ABA_LOGISTICA = "Retorno Conserto"
-
 # Regras do fluxo
 APROVACOES_OK = {"aprovado", "cortesia", "garantia"}      # relatório aprovado -> segue para reparo
 APROVACOES_REPROVADAS = {"reprovado"}                      # relatório reprovado -> sem reparo, vai para devolução
@@ -295,47 +291,6 @@ def parse_data(s):
     return d if pd.notna(d) and d.year >= 2020 else pd.NaT
 
 
-# ======================= INTEGRAÇÃO COM LOGÍSTICA =======================
-@st.cache_data(ttl=60)
-def ler_dados_logistica():
-    try:
-        sh_log = conectar().open_by_url(LINK_PLANILHA_LOGISTICA)
-        valores_log = sh_log.worksheet(NOME_ABA_LOGISTICA).get_all_values()
-        
-        ini, cab = 2, None
-        for i, l in enumerate(valores_log[:8]):
-            if any("nota do cliente" in _norm(c) for c in l):
-                ini, cab = i + 1, [_norm(c) for c in l]
-                break
-        
-        def achar_col(termos, padrao):
-            if cab is None: return padrao
-            for j, h in enumerate(cab):
-                if all(t in h for t in termos): return j
-            return padrao
-
-        j_rec = achar_col(("recebimento", "data"), 0)
-        j_nf = achar_col(("numero", "nota"), 1)
-        j_cli = achar_col(("cliente",), 2)
-        j_ent_por = achar_col(("entrada", "realizada"), 4)
-        j_ent_dt = achar_col(("entrada", "data"), 5)
-        j_lib = achar_col(("liberado",), 7)
-        
-        mapa_log = {}
-        for l in valores_log[ini:]:
-            if len(l) > max(j_nf, j_cli):
-                nf = str(l[j_nf]).strip()
-                if nf:
-                    mapa_log[nf] = {
-                        "recebimento": l[j_rec].strip() if j_rec < len(l) else "",
-                        "cliente": l[j_cli].strip() if j_cli < len(l) else "",
-                        "entrada_por": l[j_ent_por].strip() if j_ent_por < len(l) else "",
-                        "data_entrada": l[j_ent_dt].strip() if j_ent_dt < len(l) else "",
-                        "liberado": str(l[j_lib]).strip() if j_lib < len(l) else ""
-                    }
-        return mapa_log
-    except Exception:
-        return {}
 # ======================= REGRAS DO FLUXO =======================
 def avaliar(r):
     f = lambda k: bool(r[k])
@@ -470,11 +425,6 @@ def ler_casos(valores, hoje):
         if reg["cliente"] or reg["nf"]:
             linhas.append(reg)
     df = pd.DataFrame(linhas)
-    
-    dados_log = ler_dados_logistica()
-    df["log_recebimento"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("recebimento", ""))
-    df["log_entrada_por"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("entrada_por", ""))
-    df["log_data_entrada"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("data_entrada", ""))
 
     av = [avaliar(r) for r in df.to_dict("records")]
     df["status"] = [a["status"] for a in av]
@@ -1019,7 +969,7 @@ with st.sidebar:
     st.markdown('<div style="border-bottom:1px solid rgba(255,255,255,.22);margin:16px 0;"></div>', unsafe_allow_html=True)
 
     # 🔄 BOTÃO DE ATUALIZAÇÃO MANUAL
-    if st.button("🔄", use_container_width=True, help="Limpa o cache e busca os dados mais recentes do Google Sheets"):
+    if st.button("🔄 Atualizar Dados", use_container_width=True, help="Limpa o cache e busca os dados mais recentes do Google Sheets"):
         st.cache_data.clear()
         st.rerun()
 
@@ -1084,16 +1034,7 @@ if pagina == "consulta":
                     st.warning("Falta preencher na planilha: " + " · ".join(av["faltam"]))
                 dias = f"{int(r['dias'])} dia(s)" if pd.notna(r["dias"]) else "—"
                 
-                log_rec = r.get("log_recebimento", "")
-                log_ent_por = r.get("log_entrada_por", "")
-                log_dt_ent = r.get("log_data_entrada", "")
-                
-                info_logistica_extra = f""
-                if log_rec or log_dt_ent:
-                    info_logistica_extra = f'<span class="hb-chip">📦 Recebido na Logística em <b>{esc(log_rec or log_dt_ent)}</b></span>'
-                
                 st.markdown(compacta(CSS_CARDS + f'<div class="hb-chips"><span class="hb-chip">📅 Data Hub <b>{esc(r["data_receb"] or "—")}</b></span>'
-                                     f'{info_logistica_extra}'
                                      f'<span class="hb-chip">⏱️ Em atendimento há <b>{dias}</b></span></div>'), unsafe_allow_html=True)
                 st.markdown("### ⏳ Fluxo do Conserto:")
                 st.markdown(html_timeline(av["estados"]), unsafe_allow_html=True)
