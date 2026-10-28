@@ -932,12 +932,12 @@ except Exception as e:
 
 
 # ======================= NAVEGAÇÃO LATERAL (SIDEBAR) =======================
-chaves = ["consulta", "casos", "gestao", "gerenciar"]
-nomes_completos = ["🔎 Consulta de Equipamento", "📋 Casos em andamento", "📊 Gestão", "✏️ Inserir / Atualizar Case"]
-icones_apenas = ["🔎", "📋", "📊", "✏️"]
+chaves = ["gestao", "consulta", "casos", "gerenciar"]
+nomes_completos = ["📊 Dashboard", "🔎 Consulta de Equipamento", "📋 Casos em andamento", "✏️ Inserir / Atualizar Case"]
+icones_apenas = ["📊", "🔎", "📋", "✏️"]
 
 if "pagina_conserto" not in st.session_state:
-    st.session_state["pagina_conserto"] = "consulta"
+    st.session_state["pagina_conserto"] = "gestao"  # abre no Dashboard
 
 with st.sidebar:
     if expandido:
@@ -1033,7 +1033,7 @@ elif pagina == "casos":
     v = v.sort_values("dias", ascending=False, na_position="last")
     components.html(html_tabela_interativa(v), height=690, scrolling=False)
 
-# -------- 3. GESTÃO --------
+# -------- DASHBOARD (página "gestao") --------
 elif pagina == "gestao":
     gest = preparar_gestao(casos)
     meses = sorted(gest["d_data_receb"].dropna().dt.to_period("M").unique(), reverse=True)
