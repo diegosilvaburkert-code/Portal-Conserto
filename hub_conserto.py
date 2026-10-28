@@ -297,53 +297,43 @@ def parse_data(s):
 
 # ======================= INTEGRAÇÃO COM LOGÍSTICA =======================
 @st.cache_data(ttl=60)
-def ler_dados_hub_conserto():
-    """
-    Lê o status da aba 'Lead Time' na planilha do Hub de Conserto para 
-    identificar se a assistência já concluiu ou liberou o equipamento.
-    """
+def ler_dados_logistica():
     try:
-        client = conectar_google_sheets()
-        sh_hub = client.open_by_url(LINK_HUB_CONSERTO)
-        valores_hub = sh_hub.worksheet(NOME_ABA_HUB).get_all_values()
+        sh_log = conectar().open_by_url(LINK_PLANILHA_LOGISTICA)
+        valores_log = sh_log.worksheet(NOME_ABA_LOGISTICA).get_all_values()
         
-        ini, cab = 4, None
-        for i, l in enumerate(valores_hub[:15]):
-            t = _norm(" ".join(l))
-            if "nome do cliente" in t and "nota fiscal" in t:
+        ini, cab = 2, None
+        for i, l in enumerate(valores_log[:8]):
+            if any("nota do cliente" in _norm(c) for c in l):
                 ini, cab = i + 1, [_norm(c) for c in l]
                 break
-                
+        
         def achar_col(termos, padrao):
             if cab is None: return padrao
             for j, h in enumerate(cab):
                 if all(t in h for t in termos): return j
             return padrao
 
-        j_nf = achar_col(("numero", "nota fiscal"), 3)
-        j_status_dev = achar_col(("status", "devolu"), 17)
-        j_status_conc = achar_col(("status", "conclus"), 18)
+        j_rec = achar_col(("recebimento", "data"), 0)
+        j_nf = achar_col(("numero", "nota"), 1)
+        j_cli = achar_col(("cliente",), 2)
+        j_ent_por = achar_col(("entrada", "realizada"), 4)
+        j_ent_dt = achar_col(("entrada", "data"), 5)
+        j_lib = achar_col(("liberado",), 7)
         
-        mapa_hub = {}
-        for l in valores_hub[ini:]:
-            if len(l) > j_nf:
+        mapa_log = {}
+        for l in valores_log[ini:]:
+            if len(l) > max(j_nf, j_cli):
                 nf = str(l[j_nf]).strip()
                 if nf:
-                    st_dev = l[j_status_dev].strip().lower() if j_status_dev < len(l) else ""
-                    st_conc = l[j_status_conc].strip().lower() if j_status_conc < len(l) else ""
-                    
-                    # Validação mais flexível para capturar variações de texto
-                    liberado_assistencia = (
-                        any(palavra in st_dev for palavra in ["devolvido", "liberado", "logistica"]) or
-                        any(palavra in st_conc for palavra in ["finalizado", "concluido"])
-                    )
-                    
-                    mapa_hub[nf] = {
-                        "status_devolucao": st_dev,
-                        "status_conclusao": st_conc,
-                        "liberado_hub": liberado_assistencia
+                    mapa_log[nf] = {
+                        "recebimento": l[j_rec].strip() if j_rec < len(l) else "",
+                        "cliente": l[j_cli].strip() if j_cli < len(l) else "",
+                        "entrada_por": l[j_ent_por].strip() if j_ent_por < len(l) else "",
+                        "data_entrada": l[j_ent_dt].strip() if j_ent_dt < len(l) else "",
+                        "liberado": str(l[j_lib]).strip() if j_lib < len(l) else ""
                     }
-        return mapa_hub
+        return mapa_log
     except Exception:
         return {}
 # ======================= REGRAS DO FLUXO =======================
