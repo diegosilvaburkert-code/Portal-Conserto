@@ -298,10 +298,6 @@ def parse_data(s):
 # ======================= INTEGRAÇÃO COM LOGÍSTICA =======================
 @st.cache_data(ttl=60)
 def ler_dados_logistica():
-    """
-    Lê os dados da planilha da Logística (Retorno Conserto) para cruzar
-    informações de recebimento, entrada física e liberação com o Hub.
-    """
     try:
         sh_log = conectar().open_by_url(LINK_PLANILHA_LOGISTICA)
         valores_log = sh_log.worksheet(NOME_ABA_LOGISTICA).get_all_values()
@@ -477,7 +473,6 @@ def ler_casos(valores, hoje):
             linhas.append(reg)
     df = pd.DataFrame(linhas)
     
-    # Cruza com os dados da Logística automaticamente
     dados_log = ler_dados_logistica()
     df["log_recebimento"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("recebimento", ""))
     df["log_entrada_por"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("entrada_por", ""))
@@ -1023,6 +1018,13 @@ with st.sidebar:
             st.session_state["pagina_conserto"] = _k
             st.rerun()
 
+    st.markdown('<div style="border-bottom:1px solid rgba(255,255,255,.22);margin:16px 0;"></div>', unsafe_allow_html=True)
+
+    # 🔄 BOTÃO DE ATUALIZAÇÃO MANUAL
+    if st.button("🔄 Atualizar Dados", use_container_width=True, help="Limpa o cache e busca os dados mais recentes do Google Sheets"):
+        st.cache_data.clear()
+        st.rerun()
+
     texto_conexao = "🟢 Conexão Estabelecida" if expandido else "🟢"
     st.markdown(
         f'<div class="sidebar-status-container">{texto_conexao}</div>',
@@ -1084,7 +1086,6 @@ if pagina == "consulta":
                     st.warning("Falta preencher na planilha: " + " · ".join(av["faltam"]))
                 dias = f"{int(r['dias'])} dia(s)" if pd.notna(r["dias"]) else "—"
                 
-                # Exibição cruzada dos dados vindos da Logística
                 log_rec = r.get("log_recebimento", "")
                 log_ent_por = r.get("log_entrada_por", "")
                 log_dt_ent = r.get("log_data_entrada", "")
