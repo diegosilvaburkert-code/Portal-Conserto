@@ -57,7 +57,6 @@ st.markdown(f"""
             box-shadow: 0 16px 36px rgba(44, 90, 130, .30);
             margin-bottom: 26px;
         }}
-        /* esferas prateadas, como na identidade Pioneers of Flow */
         .header-banner::before {{
             content: ""; position: absolute; right: -36px; top: -46px; width: 250px; height: 250px; border-radius: 50%;
             background: radial-gradient(circle at 34% 28%, #f6f8fb 0%, #c9ced6 38%, #8a919d 100%);
@@ -265,9 +264,11 @@ LABEL = {
 MES = {"jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6, "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12}
 NOMES_FASES = ["Registro", "Recebimento Logística", "Recebimento Serviços", "Verificação",
                "Aprovação", "Reparo", "Devolução", "Conclusão"]
-COR_GRUPO = {"Aguardando recebimento": "#6aa84f", "Registro CRM": "#e0a800", "Verificação": "#5681ac",
-             "Aprovação": "#5681ac", "Aguardando aceite": "#e69138", "Em reparo": "#e69138",
-             "Reprovado": "#e53935", "Devolução": "#6b7280", "Concluído": "#1e8e3e", "Dados incompletos": "#9aa7ba"}
+COR_GRUPO = {
+    "A fazer": "#5681ac", "Follow up": "#e0a800", "Importação": "#6850d8",
+    "Garantia": "#6aa84f", "Reprovado": "#e53935", "Aprovado": "#1e8e3e",
+    "Finalizados": "#6b7280", "Dados incompletos": "#9aa7ba"
+}
 
 
 def _norm(t):
@@ -341,29 +342,29 @@ def avaliar(r):
             d += (" Etapas não realizadas (desconsideradas): " + ", ".join(nao_feitas) + ".") if nao_feitas else " Todas as etapas foram concluídas."
         if r["status_devol"]:
             d += f" Status da devolução: {r['status_devol']}."
-        return res("🟢 Finalizado", "Concluído", d)
+        return res("🟢 Finalizado", "Finalizados", d)
 
     def devolucao():
         extra = f" Status da devolução: {r['status_devol']}." if r["status_devol"] else ""
         extra += f" Status de conclusão: {r['status_concl']}." if r["status_concl"] else ""
-        return res("🚚 Devolução em andamento", "Devolução",
+        return res("🚚 Devolução em andamento", "Follow up",
                    "Devolução solicitada." + extra, falta(["status_concl"]))
 
     if not p1:
         return res("⚪ Dados incompletos", "Dados incompletos", "O registro não tem o nome do cliente.", falta(["cliente"]))
     if not p2:
-        return res("⚪ Aguardando recebimento (Logística)", "Aguardando recebimento",
+        return res("⚪ Aguardando recebimento (Logística)", "A fazer",
                    "Cliente registrado. Falta confirmar o recebimento do material na Logística.", falta(req2))
     if not p3:
-        return res("🟡 Aguardando registro no CRM (Serviços)", "Registro CRM",
+        return res("🟡 Aguardando registro no CRM (Serviços)", "A fazer",
                    "Material recebido pela Logística. Aguardando o registro no CRM e a Service Notification pelo setor de Serviços.",
                    falta(req3))
     if not p4:
-        return res("🔵 Em verificação / diagnóstico", "Verificação",
+        return res("🔵 Em verificação / diagnóstico", "A fazer",
                    "Registro concluído. O equipamento está em verificação.", falta(["data_verif"]))
     if not (p5 or bloq):
         atual = f" Valor atual na planilha: '{r['aprovacao']}'." if r["aprovacao"] else ""
-        return res("🟠 Aguardando aprovação do relatório", "Aprovação",
+        return res("🟠 Aguardando aprovação do relatório", "Follow up",
                    f"Verificação concluída em {r['data_verif']}. Aguardando a decisão do relatório "
                    f"(Aprovado, Cortesia, Garantia ou Reprovado).{atual}", falta(["aprovacao"]))
     if bloq:
@@ -371,23 +372,23 @@ def avaliar(r):
             return res("🔴 Relatório reprovado — aguardando solicitação de devolução", "Reprovado",
                        "Relatório reprovado: não haverá reparo. Falta solicitar a devolução do equipamento.",
                        falta(["solic_devol"]))
-        return devolucao() if not p8 else res("🟢 Concluído", "Concluído", "Equipamento devolvido sem reparo. Processo concluído.")
+        return devolucao() if not p8 else res("🟢 Concluído", "Finalizados", "Equipamento devolvido sem reparo. Processo concluído.")
     if not p6:
         if not dispensa and not f("aceite"):
-            return res("🟠 Aguardando aceite do pedido (Ordem SAP)", "Aguardando aceite",
+            return res("🟠 Aguardando aceite do pedido (Ordem SAP)", "Follow up",
                        f"Relatório {r['aprovacao']}. Falta o aceite do pedido (Ordem SAP) para iniciar o reparo.",
                        falta(["aceite"]))
-        return res("🛠️ Em reparo", "Em reparo",
+        return res("🛠️ Em reparo", "Importação",
                    f"Relatório {r['aprovacao']}"
                    + (" (sem pedido)" if dispensa else f"; pedido {r['aceite']} aceito") + ". Equipamento em reparo.",
                    falta(["data_reparo"]))
     if not p7:
-        return res("📦 Reparo finalizado — aguardando solicitação de devolução", "Devolução",
+        return res("📦 Reparo finalizado — aguardando solicitação de devolução", "Follow up",
                    f"Reparo finalizado em {r['data_reparo']}. Falta solicitar a devolução ao cliente.",
                    falta(["solic_devol"]))
     if not p8:
         return devolucao()
-    return res("🟢 Concluído", "Concluído", "Equipamento reparado, devolvido e processo concluído.")
+    return res("🟢 Concluído", "Finalizados", "Equipamento reparado, devolvido e processo concluído.")
 
 
 # ======================= LEITURA E ESCRITA DA PLANILHA =======================
@@ -533,9 +534,10 @@ CSS_CARDS = """<style>
 .hb-row span{color:#6b7a90}.hb-row b{color:#3b719f;text-align:right;overflow-wrap:anywhere}.hb-row b.vz{color:#b3bdcc;font-weight:500}
 .hb-chips{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
 .hb-chip{background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;color:#1f3a57;box-shadow:0 2px 6px rgba(59,113,159,.10)}
-.hb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:8px 0 14px}
-.hb-kpi{background:#fff;border-radius:16px;padding:12px;text-align:center;box-shadow:0 3px 10px rgba(59,113,159,.10);border-top:5px solid #3b719f}
-.hb-kpi .n{font-size:30px;font-weight:700;color:#3b719f;line-height:1.1}.hb-kpi .l{font-size:12px;color:#6b7a90;margin-top:2px}
+.hb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:8px 0 16px}
+.hb-kpi{background:#fff;border-radius:20px;padding:24px 20px;text-align:center;box-shadow:0 6px 18px rgba(59,113,159,.12);border-top:6px solid #3b719f;min-height:130px;display:flex;flex-direction:column;justify-content:center}
+.hb-kpi .n{font-size:42px;font-weight:800;color:#3b719f;line-height:1.1}
+.hb-kpi .l{font-size:13px;font-weight:700;color:#5c6b73;margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
 </style>"""
 
 FASES_CARDS = [
@@ -574,12 +576,28 @@ def html_cards(r, estados):
 
 
 def html_kpis(df):
+    # Desconsidera finalizados das métricas principais de andamento
     abertos = df[~df["concluido"]]
     cont = abertos["grupo"].value_counts()
-    cards = f'<div class="hb-kpi" style="border-top-color:#3b719f"><div class="n">{len(abertos)}</div><div class="l">Em andamento</div></div>'
-    for g in COR_GRUPO:
-        if cont.get(g, 0):
-            cards += f'<div class="hb-kpi" style="border-top-color:{COR_GRUPO[g]}"><div class="n">{int(cont[g])}</div><div class="l">{g}</div></div>'
+    
+    # Nova estrutura de colunas solicitada: Coluna A, M, S
+    card_ordem = [
+        ("A fazer", COR_GRUPO["A fazer"]),
+        ("Follow up", COR_GRUPO["Follow up"]),
+        ("Importação", COR_GRUPO["Importação"]),
+        ("Garantia", COR_GRUPO["Garantia"]),
+        ("Reprovado", COR_GRUPO["Reprovado"]),
+        ("Aprovado", COR_GRUPO["Aprovado"]),
+        ("Finalizados", COR_GRUPO["Finalizados"])
+    ]
+    
+    cards = f'<div class="hb-kpi" style="border-top-color:#3b719f"><div class="n">{len(abertos)}</div><div class="l">Em andamento (Geral)</div></div>'
+    for g, cor in card_ordem:
+        if g == "Finalizados":
+            val = int(df["concluido"].sum())
+        else:
+            val = int(cont.get(g, 0))
+        cards += f'<div class="hb-kpi" style="border-top-color:{cor}"><div class="n">{val}</div><div class="l">{g}</div></div>'
     return compacta(CSS_CARDS + f'<div class="hb-kpis">{cards}</div>')
 
 
@@ -796,7 +814,6 @@ CLIENTES_IGNORADOS_GESTAO = []  # ex.: ["burkert"] para tirar clientes internos 
 
 
 def preparar_gestao(casos):
-    """Datas convertidas e tempos (em dias) entre as fases. Diferenças negativas ou > 2 anos são tratadas como erro de digitação."""
     g = casos.copy()
     if CLIENTES_IGNORADOS_GESTAO:
         nomes = g["cliente"].map(_norm)
@@ -822,7 +839,6 @@ def montar_gestao(g, sel, hoje):
     total = len(g)
     criticos = int((abertos["dias"] >= ALERTA_VERMELHO_DIAS).sum())
 
-    # --- KPI 1: lead time total (recebimento -> reparo finalizado)
     tt = g.dropna(subset=["t_total"])
     media = tt["t_total"].mean() if len(tt) else None
     serie = tt.groupby(tt["d_data_reparo"].dt.to_period("M"))["t_total"].mean().tail(8).tolist()
@@ -830,7 +846,6 @@ def montar_gestao(g, sel, hoje):
           f'<div class="pf-v">{_fmt1(media) + " dias" if media is not None else "—"}</div>'
           f'<div class="pf-s">Do recebimento ao reparo finalizado (exceto reprovados) · {len(tt)} casos</div>{_spark(serie)}</div>')
 
-    # --- KPI 2: equipamentos recebidos no mês
     rec = g.dropna(subset=["d_data_receb"]).copy()
     rec["mes"] = rec["d_data_receb"].dt.to_period("M")
     if sel is not None:
@@ -843,7 +858,6 @@ def montar_gestao(g, sel, hoje):
     k2 = (f'<div class="pf-card"><div class="pf-t">Recebidos no mês</div><div class="pf-v">{qtd}</div>'
           f'<div class="pf-s">{rot} · equipamentos por dia</div>{_spark(diario)}</div>')
 
-    # --- KPI 3: taxa de reprovação
     aprov = g["ap"].isin(APROVACOES_OK).sum()
     reprov = g["ap"].isin(APROVACOES_REPROVADAS).sum()
     decididos = int(aprov + reprov)
@@ -856,12 +870,10 @@ def montar_gestao(g, sel, hoje):
           f'<div class="pf-duo"><div><b>{len(abertos)}</b><span>Casos abertos</span></div>'
           f'<div><b>{criticos}</b><span>Críticos (≥ {ALERTA_VERMELHO_DIAS} dias)</span></div></div></div>')
 
-    # --- donuts
     fin = total - len(abertos)
     donuts = (_donut(fin / total * 100 if total else 0, f"Casos finalizados ({fin} de {total})")
               + _donut(criticos / len(abertos) * 100 if len(abertos) else 0, "Em andamento há mais de 60 dias"))
 
-    # --- recebimentos por mês (12 meses)
     if sel is not None:
         per = pd.period_range(end=sel, periods=12, freq="M")
         cont = rec.groupby("mes").size().reindex(per, fill_value=0)
@@ -874,20 +886,17 @@ def montar_gestao(g, sel, hoje):
               f'<span>Mês selecionado</span><b>{qtd}</b>'
               f'<span style="margin-top:14px">Média mensal</span><b>{_fmt1(media_m)}</b></div></div></div>')
 
-    # --- lead time por fase
     fases = [("Logística → CRM", "t_log_crm"), ("Verificação", "t_verif"), ("Aprov. → Pedido", "t_pedido"), ("Reparo", "t_reparo")]
     medias = [round(float(g[c].mean()), 1) if g[c].notna().any() else 0 for _, c in fases]
     barras_fase = (f'<div class="pf-card"><div class="pf-t">Lead time por fase</div>'
                    f'<div class="pf-s">Média de dias em cada etapa (casos com as duas datas preenchidas)</div>'
                    f'{_barras([n for n, _ in fases], medias, fmt=_fmt1)}</div>')
 
-    # --- situação dos casos em andamento
     sit = abertos["grupo"].value_counts()
-    sit_l = [(gp, int(sit[gp])) for gp in COR_GRUPO if sit.get(gp, 0)]
+    sit_l = [(gp, int(sit[gp])) for gp in ["A fazer", "Follow up", "Importação", "Garantia", "Reprovado", "Aprovado"] if sit.get(gp, 0)]
     l_sit = (f'<div class="pf-card"><div class="pf-t">Situação dos casos em andamento</div>'
              f'<div class="pf-s">Onde cada equipamento está hoje no fluxo</div>{_lista(sit_l, lambda v: f"{v}")}</div>')
 
-    # --- resultado dos relatórios
     nomes_ap = {"garantia": "Garantia", "aprovado": "Aprovado", "cortesia": "Cortesia", "reprovado": "Reprovado"}
     res = [(n, int((g["ap"] == k).sum())) for k, n in nomes_ap.items()]
     espera = int(((g["ap"] == "") & g["d_data_verif"].notna() & ~g["concluido"].astype(bool)).sum())
@@ -896,13 +905,11 @@ def montar_gestao(g, sel, hoje):
     l_res = (f'<div class="pf-card"><div class="pf-t">Resultado dos relatórios</div>'
              f'<div class="pf-s">Decisão registrada em "Aprovação de relatório"</div>{_lista(res, lambda v: f"{v}")}</div>')
 
-    # --- idade dos casos em andamento
     ordem = ["até 30 dias", "31–60", "61–90", "91–180", "+180"]
     fx = pd.cut(abertos["dias"].dropna(), [-1, 30, 60, 90, 180, 10**6], labels=ordem).astype(str).value_counts().reindex(ordem, fill_value=0)
     barras_idade = (f'<div class="pf-card"><div class="pf-t">Idade dos casos em andamento</div>'
                     f'<div class="pf-s">Dias desde o recebimento do equipamento</div>{_barras(ordem, fx.tolist())}</div>')
 
-    # --- clientes
     aberto_c = abertos.dropna(subset=["dias"]).groupby("cliente")["dias"].mean().sort_values(ascending=False).head(5)
     l_cli = (f'<div class="pf-card"><div class="pf-t">Clientes com maior tempo em aberto</div>'
              f'<div class="pf-s">Média de dias dos casos ainda em andamento</div>'
@@ -934,7 +941,7 @@ nomes_completos = ["📊 Dashboard", "🔎 Consulta", "📋 Casos em andamento",
 icones_apenas = ["📊", "🔎", "📋", "✏️"]
 
 if "pagina_conserto" not in st.session_state:
-    st.session_state["pagina_conserto"] = "gestao"  # abre no Dashboard
+    st.session_state["pagina_conserto"] = "gestao"
 
 with st.sidebar:
     if expandido:
