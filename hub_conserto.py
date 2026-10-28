@@ -126,7 +126,7 @@ st.markdown(f"""
         }}
         section[data-testid="stSidebar"] .stButton button {{
             width: 100%;
-            justify-content: {"flex-start" if expandido else "center"} !important;
+            justify-content: center !important;
             border: none;
             border-radius: 14px;
             padding: {"0.75rem 1rem" if expandido else "0.75rem 0rem"} !important;
@@ -135,7 +135,7 @@ st.markdown(f"""
             transition: all 0.2s;
         }}
         .stApp section[data-testid="stSidebar"] .stButton button p {{
-            text-align: {"left" if expandido else "center"} !important;
+            text-align: center !important;
             font-size: {"15px" if expandido else "20px"};
             font-weight: 600;
             color: #5b6b8c;
@@ -933,7 +933,7 @@ except Exception as e:
 
 # ======================= NAVEGAÇÃO LATERAL (SIDEBAR) =======================
 chaves = ["gestao", "consulta", "casos", "gerenciar"]
-nomes_completos = ["📊 Dashboard", "🔎 Consulta de Equipamento", "📋 Casos em andamento", "✏️ Inserir / Atualizar Case"]
+nomes_completos = ["📊 Dashboard", "🔎 Consulta", "📋 Casos em andamento", "✏️ Inserir / Atualizar Case"]
 icones_apenas = ["📊", "🔎", "📋", "✏️"]
 
 if "pagina_conserto" not in st.session_state:
