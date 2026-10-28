@@ -325,7 +325,7 @@ def avaliar(r):
     if final:
         feito = [p1, not falta(req2), not falta(req3), f("data_verif"), ap in APROVACOES_OK,
                  f("data_reparo") and (dispensa or f("aceite")),
-                 f("solic_devol"] or _norm(r["status_devol"]) == "devolvido"]
+                 f("solic_devol") or _norm(r["status_devol"]) == "devolvido"]
         est = ["ok" if x else "pulado" for x in feito] + ["ok"]
         if reprov:
             est[4], est[5] = "bloqueado", "nao_realizado"
