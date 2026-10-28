@@ -34,12 +34,12 @@ sb_width = "270px" if expandido else "90px"
 st.markdown(f"""
     <style>
         :root {{
-            --azul: #7c93fb;
-            --azul-esc: #4f67e8;
-            --rosa: #f06aa8;
+            --azul: #6d8fb6;
+            --azul-esc: #3b719f;
+            --prata: #b8bdc6;
         }}
         .stApp {{
-            background: linear-gradient(135deg, #f0f3ff 0%, #e3e9fd 100%);
+            background: linear-gradient(135deg, #eef3f8 0%, #dce6f1 100%);
         }}
         header[data-testid="stHeader"] {{
             background: transparent !important;
@@ -48,43 +48,60 @@ st.markdown(f"""
             padding-top: 1.6rem;
             max-width: 1500px;
         }}
+        /* ===== BANNER: grande, direto, palavra de impacto + ponto final ===== */
         .header-banner {{
-            background: linear-gradient(110deg, #8aa0ff, #4f67e8);
-            border-radius: 22px;
-            padding: 28px;
-            box-shadow: 0 14px 32px rgba(79, 103, 232, .30);
-            margin-bottom: 25px;
+            position: relative; overflow: hidden;
+            background: linear-gradient(160deg, #6d8fb6 0%, #5681ac 48%, #3b719f 100%);
+            border-radius: 26px;
+            padding: 34px 40px 36px;
+            box-shadow: 0 16px 36px rgba(44, 90, 130, .30);
+            margin-bottom: 26px;
         }}
-        .header-banner h1 {{
-            color: white !important;
-            font-size: 24px !important;
-            margin: 0 !important;
-            letter-spacing: 1px;
-            font-weight: 700;
-            text-align: center !important;
+        /* esferas prateadas, como na identidade Pioneers of Flow */
+        .header-banner::before {{
+            content: ""; position: absolute; right: -36px; top: -46px; width: 250px; height: 250px; border-radius: 50%;
+            background: radial-gradient(circle at 34% 28%, #f6f8fb 0%, #c9ced6 38%, #8a919d 100%);
+            box-shadow: inset -14px -18px 34px rgba(31, 58, 87, .35); opacity: .92;
         }}
-        .header-banner p {{
-            margin: 5px 0 0 0 !important;
-            font-size: 14px;
-            opacity: 0.9;
-            text-align: center !important;
+        .header-banner::after {{
+            content: ""; position: absolute; right: 200px; bottom: -42px; width: 120px; height: 120px; border-radius: 50%;
+            background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.75), rgba(184,189,198,.5) 55%, rgba(255,255,255,.10));
+            box-shadow: inset -8px -10px 22px rgba(31, 58, 87, .25);
+        }}
+        .header-banner > * {{ position: relative; z-index: 1; }}
+        .stApp .header-banner .hb-kicker {{
+            font-size: 12px; font-weight: 800; letter-spacing: 3px; color: #dbe6f1; text-align: left !important; margin: 0 0 10px 0 !important;
+        }}
+        .stApp .header-banner h1 {{
+            color: #ffffff !important; font-size: 46px !important; line-height: 1.02 !important; margin: 0 !important;
+            letter-spacing: .5px; font-weight: 800 !important; text-transform: uppercase;
+            text-align: left !important; max-width: 70%;
+        }}
+        .stApp .header-banner p {{
+            margin: 12px 0 0 0 !important; font-size: 16px; color: #eaf1f8; opacity: .95;
+            text-align: left !important; max-width: 62%;
+        }}
+        @media (max-width: 900px) {{
+            .header-banner::before, .header-banner::after {{ display: none; }}
+            .stApp .header-banner h1 {{ font-size: 30px !important; max-width: 100%; }}
+            .stApp .header-banner p {{ max-width: 100%; }}
         }}
 
-        /* ===== MENU LATERAL FIXO / DINÂMICO ===== */
+        /* ===== MENU LATERAL FIXO / DINÂMICO (azul Pioneers) ===== */
         section[data-testid="stSidebar"] {{
             width: {sb_width} !important;
             min-width: {sb_width} !important;
             max-width: {sb_width} !important;
             transform: none !important;
             visibility: visible !important;
-            background: #ffffff;
-            border-radius: 0 26px 26px 0;
-            box-shadow: 8px 0 30px rgba(79, 103, 232, .14);
+            background: linear-gradient(185deg, #5681ac 0%, #3b719f 55%, #2c5a82 100%) !important;
+            border-radius: 0 28px 28px 0;
+            box-shadow: 8px 0 30px rgba(44, 90, 130, .28);
             transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
             position: relative !important;
         }}
+        section[data-testid="stSidebar"] > div {{ background: transparent !important; }}
 
-        /* Oculta completamente controles nativos sobrepostos do Streamlit */
         [data-testid="stSidebarCollapseButton"],
         [data-testid="stSidebarCollapsedControl"],
         [data-testid="collapsedControl"],
@@ -96,81 +113,55 @@ st.markdown(f"""
             padding: 1.2rem 0.8rem 3.5rem 0.8rem !important;
         }}
 
-        /* Cabeçalho do Menu Lateral */
         .sb-header {{
-            display: flex;
-            align-items: center;
+            display: flex; align-items: center;
             justify-content: {"space-between" if expandido else "center"};
             padding: 4px 6px 16px 6px;
-            border-bottom: 1px solid #e8edfb;
+            border-bottom: 1px solid rgba(255,255,255,.22);
             margin-bottom: 20px;
         }}
         .sb-logo {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            white-space: nowrap;
-            font-size: 22px;
+            display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 24px;
         }}
         .sb-logo span {{
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 1.2px;
-            line-height: 1.2;
-            color: #4f67e8;
+            font-size: 12px; font-weight: 800; letter-spacing: 1.6px; line-height: 1.2; color: #ffffff;
         }}
 
-        /* Botões da Sidebar */
-        section[data-testid="stSidebar"] .stButton {{
-            margin-bottom: 8px;
-        }}
+        section[data-testid="stSidebar"] .stButton {{ margin-bottom: 8px; }}
         section[data-testid="stSidebar"] .stButton button {{
             width: 100%;
             justify-content: center !important;
             border: none;
-            border-radius: 14px;
-            padding: {"0.75rem 1rem" if expandido else "0.75rem 0rem"} !important;
+            border-radius: 16px;
+            padding: {"0.8rem 1rem" if expandido else "0.8rem 0rem"} !important;
             background: transparent;
             box-shadow: none;
             transition: all 0.2s;
         }}
         .stApp section[data-testid="stSidebar"] .stButton button p {{
-            text-align: center !important;
+            text-align: {"left" if expandido else "center"} !important;
             font-size: {"15px" if expandido else "20px"};
-            font-weight: 600;
-            color: #5b6b8c;
+            font-weight: 700;
+            color: #e3ecf5;
             margin: 0;
         }}
-        section[data-testid="stSidebar"] .stButton button:hover {{
-            background: #eef1ff;
-        }}
+        section[data-testid="stSidebar"] .stButton button:hover {{ background: rgba(255,255,255,.14); }}
         section[data-testid="stSidebar"] .stButton button[kind="primary"],
         section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{
-            background: linear-gradient(90deg, #8aa0ff, #4f67e8);
-            box-shadow: 0 8px 18px rgba(79, 103, 232, .32);
+            background: #ffffff;
+            box-shadow: 0 10px 22px rgba(20, 50, 80, .30);
         }}
         .stApp section[data-testid="stSidebar"] .stButton button[kind="primary"] p,
         .stApp section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] p {{
-            color: #fff !important;
+            color: #2c5a82 !important;
         }}
 
-        /* Status de Conexão no Rodapé da Sidebar */
         .sidebar-status-container {{
-            position: absolute;
-            bottom: -300px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #d1e7dd;
-            color: #0f5132;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 700;
-            border: 1px solid #badbcc;
-            white-space: nowrap;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
+            margin-top: 28px; text-align: center;
+            background: rgba(255,255,255,.14); color: #ffffff;
+            padding: 7px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 700; letter-spacing: .4px;
+            border: 1px solid rgba(255,255,255,.30); white-space: nowrap;
         }}
 
         /* Ajustes e Centralização da Área Principal */
@@ -185,7 +176,7 @@ st.markdown(f"""
         .stRadio [data-testid="stWidgetLabel"] label p,
         .stSelectbox [data-testid="stWidgetLabel"] label p,
         .stTextInput [data-testid="stWidgetLabel"] label p {{
-            color: #2c3e57 !important;
+            color: #1f3a57 !important;
             font-weight: 600 !important;
             font-size: 13.5px !important;
         }}
@@ -195,13 +186,19 @@ st.markdown(f"""
             border-radius: 16px;
             padding: 24px;
             margin-bottom: 24px;
-            box-shadow: 0 4px 20px rgba(79, 103, 232, 0.08);
+            box-shadow: 0 4px 20px rgba(59, 113, 159, 0.08);
             border: 1px solid #e2e8f0;
             text-align: left !important;
         }}
         
-        .form-section-card h4, .form-section-card p {{
-            text-align: left !important;
+        [data-testid="stForm"] {{
+            background: #ffffff; border: 1px solid #dfe7f0 !important; border-radius: 22px; padding: 26px 28px;
+            box-shadow: 0 10px 28px rgba(44, 90, 130, .10);
+        }}
+        .form-title {{
+            font-size: 15px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+            color: #3b719f; margin: 8px 0 14px; text-align: left !important;
+            padding-bottom: 8px; border-bottom: 2px solid #e6eef6;
         }}
 
         .stTextInput input, .stSelectbox div[data-baseweb="select"] {{
@@ -211,18 +208,18 @@ st.markdown(f"""
             color: #1e293b !important;
         }}
         .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within {{
-            border-color: #4f67e8 !important;
-            box-shadow: 0 0 0 3px rgba(79, 103, 232, 0.15) !important;
+            border-color: #3b719f !important;
+            box-shadow: 0 0 0 3px rgba(59, 113, 159, 0.15) !important;
         }}
 
         .stFormSubmitButton button {{
-            background: linear-gradient(90deg, #4f67e8, #7c93fb) !important;
+            background: linear-gradient(90deg, #3b719f, #6d8fb6) !important;
             color: white !important;
             font-weight: 700 !important;
             border-radius: 12px !important;
             padding: 0.75rem 1.5rem !important;
             border: none !important;
-            box-shadow: 0 4px 15px rgba(79, 103, 232, 0.3) !important;
+            box-shadow: 0 4px 15px rgba(59, 113, 159, 0.3) !important;
             transition: all 0.2s ease;
             width: 100%;
         }}
@@ -268,8 +265,8 @@ LABEL = {
 MES = {"jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6, "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12}
 NOMES_FASES = ["Registro", "Recebimento Logística", "Recebimento Serviços", "Verificação",
                "Aprovação", "Reparo", "Devolução", "Conclusão"]
-COR_GRUPO = {"Aguardando recebimento": "#6aa84f", "Registro CRM": "#e0a800", "Verificação": "#4a7fcb",
-             "Aprovação": "#4a7fcb", "Aguardando aceite": "#e69138", "Em reparo": "#e69138",
+COR_GRUPO = {"Aguardando recebimento": "#6aa84f", "Registro CRM": "#e0a800", "Verificação": "#5681ac",
+             "Aprovação": "#5681ac", "Aguardando aceite": "#e69138", "Em reparo": "#e69138",
              "Reprovado": "#e53935", "Devolução": "#6b7280", "Concluído": "#1e8e3e", "Dados incompletos": "#9aa7ba"}
 
 
@@ -488,8 +485,8 @@ CSS_TL = """<style>
 .stepper-item{position:relative;display:flex;flex-direction:column;align-items:center;flex:1;z-index:3}
 .step-counter{width:42px;height:42px;display:flex;justify-content:center;align-items:center;background:#fff;border:4px solid #cbd6e2;border-radius:50%;font-weight:bold;color:#cbd6e2;font-size:17px;box-shadow:0 2px 5px rgba(0,0,0,.1);box-sizing:border-box}
 .step-name{margin-top:8px;font-size:12px;font-weight:600;color:#5c6b73;text-align:center;padding:0 4px}
-.stepper-item.completed .step-counter{background:#00d83a;border-color:#00d83a;color:#fff}
-.stepper-item.completed .step-name{color:#4f67e8;font-weight:700}
+.stepper-item.completed .step-counter{background:#2fae6e;border-color:#2fae6e;color:#fff}
+.stepper-item.completed .step-name{color:#3b719f;font-weight:700}
 .stepper-item.blocked .step-counter{background:#e53935;border-color:#e53935;color:#fff}
 .stepper-item.blocked .step-name{color:#e53935;font-weight:700}
 .stepper-item.warn .step-counter{background:#f5b301;border-color:#f5b301;color:#fff}
@@ -497,7 +494,7 @@ CSS_TL = """<style>
 .stepper-item.skipped .step-counter{background:#e1e9f5;border-color:#c5d3e8;color:#7d8fa8}
 </style>"""
 
-COR_TRECHO = {"ok": "#00d83a", "bloqueado": "#e53935", "nao_realizado": "#f5b301", "pulado": "#c5d3e8"}
+COR_TRECHO = {"ok": "#2fae6e", "bloqueado": "#e53935", "nao_realizado": "#f5b301", "pulado": "#c5d3e8"}
 
 
 def html_timeline(estados):
@@ -526,26 +523,26 @@ def html_timeline(estados):
 CSS_CARDS = """<style>
 .hb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
 @media(max-width:900px){.hb-grid{grid-template-columns:1fr}}
-.hb-card{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 3px 10px rgba(79,103,232,.10);border-top:5px solid #4f67e8;text-align:left}
-.hb-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#2c3e57;margin-bottom:8px}
+.hb-card{background:#fff;border-radius:18px;padding:14px 16px;box-shadow:0 3px 10px rgba(59,113,159,.10);border-top:5px solid #3b719f;text-align:left}
+.hb-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#1f3a57;margin-bottom:8px}
 .hb-h em{font-style:normal;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;text-transform:none;letter-spacing:0}
 .hb-h em.ok{background:#e3f6e8;color:#1e8e3e}.hb-h em.bad{background:#fde2e2;color:#c62828}
 .hb-h em.skip{background:#e8edf5;color:#6b7a90}.hb-h em.warn{background:#fff3d6;color:#b45309}.hb-h em.part{background:#fff3d6;color:#b45309}.hb-h em.pend{background:#eef2f8;color:#6b7a90}
 .hb-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #e1e9f5;font-size:13px}
 .hb-row:last-child{border-bottom:none}
-.hb-row span{color:#6b7a90}.hb-row b{color:#4f67e8;text-align:right;overflow-wrap:anywhere}.hb-row b.vz{color:#b3bdcc;font-weight:500}
+.hb-row span{color:#6b7a90}.hb-row b{color:#3b719f;text-align:right;overflow-wrap:anywhere}.hb-row b.vz{color:#b3bdcc;font-weight:500}
 .hb-chips{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
-.hb-chip{background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;color:#2c3e57;box-shadow:0 2px 6px rgba(79,103,232,.10)}
+.hb-chip{background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;color:#1f3a57;box-shadow:0 2px 6px rgba(59,113,159,.10)}
 .hb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:8px 0 14px}
-.hb-kpi{background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:0 3px 10px rgba(79,103,232,.10);border-top:5px solid #4f67e8}
-.hb-kpi .n{font-size:30px;font-weight:700;color:#4f67e8;line-height:1.1}.hb-kpi .l{font-size:12px;color:#6b7a90;margin-top:2px}
+.hb-kpi{background:#fff;border-radius:16px;padding:12px;text-align:center;box-shadow:0 3px 10px rgba(59,113,159,.10);border-top:5px solid #3b719f}
+.hb-kpi .n{font-size:30px;font-weight:700;color:#3b719f;line-height:1.1}.hb-kpi .l{font-size:12px;color:#6b7a90;margin-top:2px}
 </style>"""
 
 FASES_CARDS = [
-    ("Registro de Clientes", "#8b4513", [0], [("ordem_status",), ("cliente",)]),
+    ("Registro de Clientes", "#5a5e6a", [0], [("ordem_status",), ("cliente",)]),
     ("Recebimento | Logística", "#6aa84f", [1], [("nf",), ("itens",), ("data_nf",), ("data_receb",)]),
     ("Recebimento | Serviços", "#e0a800", [2], [("data_crm",), ("cas",), ("service",)]),
-    ("Verificações & Diagnósticos", "#4a7fcb", [3, 4], [("data_verif",), ("status_verif",), ("aprovacao",)]),
+    ("Verificações & Diagnósticos", "#5681ac", [3, 4], [("data_verif",), ("status_verif",), ("aprovacao",)]),
     ("Reparos & Manutenções", "#e69138", [5], [("aceite",), ("data_ordem",), ("data_reparo",)]),
     ("Devolução | Logística", "#6b7280", [6, 7], [("solic_devol",), ("status_devol",), ("status_concl",)]),
 ]
@@ -579,7 +576,7 @@ def html_cards(r, estados):
 def html_kpis(df):
     abertos = df[~df["concluido"]]
     cont = abertos["grupo"].value_counts()
-    cards = f'<div class="hb-kpi" style="border-top-color:#4f67e8"><div class="n">{len(abertos)}</div><div class="l">Em andamento</div></div>'
+    cards = f'<div class="hb-kpi" style="border-top-color:#3b719f"><div class="n">{len(abertos)}</div><div class="l">Em andamento</div></div>'
     for g in COR_GRUPO:
         if cont.get(g, 0):
             cards += f'<div class="hb-kpi" style="border-top-color:{COR_GRUPO[g]}"><div class="n">{int(cont[g])}</div><div class="l">{g}</div></div>'
@@ -587,16 +584,16 @@ def html_kpis(df):
 
 
 _CSS_TAB = """
-body{margin:0;background:transparent;font-family:"Source Sans Pro",Arial,sans-serif;color:#2c3e57}
+body{margin:0;background:transparent;font-family:"Source Sans Pro",Arial,sans-serif;color:#1f3a57}
 .top{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 8px;font-size:13px;color:#6b7a90}
-.top button{border:1px solid #4f67e8;background:#fff;color:#4f67e8;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
-.top button:hover{background:#4f67e8;color:#fff}
+.top button{border:1px solid #3b719f;background:#fff;color:#3b719f;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
+.top button:hover{background:#3b719f;color:#fff}
 .tb{max-height:600px;overflow:auto;border-radius:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 table{width:100%;border-collapse:collapse;font-size:14px}
-.hd th{position:sticky;top:0;height:41px;box-sizing:border-box;background:#4f67e8;color:#fff;padding:0 8px;z-index:2;cursor:pointer;user-select:none;white-space:nowrap}
-.hd th:hover{background:#3b52c4}
-.ft td{position:sticky;top:41px;background:#eaf1fb;padding:5px 6px;z-index:2;border-bottom:1px solid #d5e1f2}
-.ft input,.ft select{width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #c5d3e8;border-radius:5px;font-size:12px;background:#fff;color:#2c3e57}
+.hd th{position:sticky;top:0;height:41px;box-sizing:border-box;background:#3b719f;color:#fff;padding:0 8px;z-index:2;cursor:pointer;user-select:none;white-space:nowrap}
+.hd th:hover{background:#2c5a82}
+.ft td{position:sticky;top:41px;background:#e6eef6;padding:5px 6px;z-index:2;border-bottom:1px solid #d5e1f2}
+.ft input,.ft select{width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #c5d3e8;border-radius:5px;font-size:12px;background:#fff;color:#1f3a57}
 tbody td{padding:8px;border-bottom:1px solid #e4e9f0;text-align:center}
 """
 _JS_TAB = """
@@ -677,11 +674,11 @@ CSS_DASH = """<style>
 .pf-r2{grid-template-columns:270px 1fr}
 .pf-r3{grid-template-columns:1.2fr 1fr 1fr}
 @media(max-width:1000px){.pf-r1,.pf-r2,.pf-r3{grid-template-columns:1fr}}
-.pf-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 3px 10px rgba(79,103,232,.10);text-align:left;overflow:hidden}
+.pf-card{background:#fff;border-radius:20px;padding:18px 20px;box-shadow:0 3px 10px rgba(59,113,159,.10);text-align:left;overflow:hidden}
 .pf-t{font-size:12px;font-weight:700;letter-spacing:.5px;color:#5c6b83;text-transform:uppercase}
 .pf-s{font-size:12px;color:#8a97ab;margin-top:2px}
-.pf-v{font-size:36px;font-weight:700;color:#4f67e8;line-height:1.15;margin-top:6px}
-.pf-blue{background:linear-gradient(90deg,#7c93fb,#4f67e8);color:#fff;display:flex;flex-direction:column;justify-content:center}
+.pf-v{font-size:36px;font-weight:700;color:#3b719f;line-height:1.15;margin-top:6px}
+.pf-blue{background:linear-gradient(90deg,#6d8fb6,#3b719f);color:#fff;display:flex;flex-direction:column;justify-content:center}
 .pf-blue .pf-t,.pf-blue .pf-s{color:#e3edfb}
 .pf-duo{display:flex;justify-content:space-around;gap:10px;margin-top:8px}
 .pf-duo div{text-align:center}
@@ -691,14 +688,14 @@ CSS_DASH = """<style>
 .pf-don+.pf-don{margin-top:18px;padding-top:16px;border-top:1px solid #e1e9f5}
 .pf-big{display:flex;gap:18px;align-items:center}
 .pf-big .side{min-width:150px;text-align:left}
-.pf-big .side b{display:block;font-size:30px;color:#4f67e8;line-height:1.1}
+.pf-big .side b{display:block;font-size:30px;color:#3b719f;line-height:1.1}
 .pf-big .side span{font-size:12px;color:#8a97ab;display:block;margin-bottom:14px}
 .pf-li{margin-top:14px}
-.pf-lr{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;color:#2c3e57}
+.pf-lr{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;color:#1f3a57}
 .pf-lr span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pf-lr b{color:#4f67e8;white-space:nowrap}
+.pf-lr b{color:#3b719f;white-space:nowrap}
 .pf-tr{height:6px;border-radius:6px;background:#e1e9f5;margin-top:5px}
-.pf-fi{height:6px;border-radius:6px;background:linear-gradient(90deg,#7c93fb,#4f67e8)}
+.pf-fi{height:6px;border-radius:6px;background:linear-gradient(90deg,#6d8fb6,#3b719f)}
 </style>"""
 
 
@@ -721,10 +718,10 @@ def _spark(vals, w=240, h=46):
     pts = [(2 + i * (w - 4) / (len(vals) - 1), h - 8 - (v - mn) / rng * (h - 16)) for i, v in enumerate(vals)]
     d = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
     return (f'<svg viewBox="0 0 {w} {h}" width="100%" height="{h}" preserveAspectRatio="none">'
-            f'<defs><linearGradient id="sp{u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7c93fb" '
-            f'stop-opacity=".25"/><stop offset="1" stop-color="#7c93fb" stop-opacity="0"/></linearGradient></defs>'
+            f'<defs><linearGradient id="sp{u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6d8fb6" '
+            f'stop-opacity=".25"/><stop offset="1" stop-color="#6d8fb6" stop-opacity="0"/></linearGradient></defs>'
             f'<polygon points="2,{h} {d} {w-2},{h}" fill="url(#sp{u})"/>'
-            f'<polyline points="{d}" fill="none" stroke="#7c93fb" stroke-width="2.2" stroke-linejoin="round" '
+            f'<polyline points="{d}" fill="none" stroke="#6d8fb6" stroke-width="2.2" stroke-linejoin="round" '
             f'stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>')
 
 
@@ -734,12 +731,12 @@ def _donut(pct, legenda):
     circ = 2 * 3.14159265 * r
     u = next(_uid)
     return (f'<div class="pf-don"><svg viewBox="0 0 110 110" width="120" height="120">'
-            f'<defs><linearGradient id="dn{u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c93fb"/>'
-            f'<stop offset="1" stop-color="#4f67e8"/></linearGradient></defs>'
+            f'<defs><linearGradient id="dn{u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d8fb6"/>'
+            f'<stop offset="1" stop-color="#3b719f"/></linearGradient></defs>'
             f'<circle cx="55" cy="55" r="{r}" fill="none" stroke="#dbe5f3" stroke-width="9"/>'
             f'<circle cx="55" cy="55" r="{r}" fill="none" stroke="url(#dn{u})" stroke-width="9" stroke-linecap="round" '
             f'stroke-dasharray="{circ * pct / 100:.1f} {circ:.1f}" transform="rotate(-90 55 55)"/>'
-            f'<text x="55" y="62" text-anchor="middle" font-size="22" font-weight="700" fill="#4f67e8">{pct:.0f}%</text>'
+            f'<text x="55" y="62" text-anchor="middle" font-size="22" font-weight="700" fill="#3b719f">{pct:.0f}%</text>'
             f'</svg><div class="pf-s">{legenda}</div></div>')
 
 
@@ -753,12 +750,12 @@ def _linha(rot, vals, w=640, h=230):
                     f'y2="{pt + (h - pt - pb) * k / 3:.1f}" stroke="#e1e9f5"/>' for k in range(4))
     pts = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals))
     bolas = "".join(
-        f'<circle cx="{X(i):.1f}" cy="{Y(v):.1f}" r="5" fill="#fff" stroke="#7c93fb" stroke-width="3"/>'
+        f'<circle cx="{X(i):.1f}" cy="{Y(v):.1f}" r="5" fill="#fff" stroke="#6d8fb6" stroke-width="3"/>'
         f'<text x="{X(i):.1f}" y="{Y(v) - 11:.1f}" text-anchor="middle" font-size="11" font-weight="600" '
-        f'fill="#4f67e8">{v}</text>' for i, v in enumerate(vals))
+        f'fill="#3b719f">{v}</text>' for i, v in enumerate(vals))
     eixo = "".join(f'<text x="{X(i):.1f}" y="{h - 10}" text-anchor="middle" font-size="11" fill="#8a97ab">{r}</text>'
                    for i, r in enumerate(rot))
-    return (f'<svg viewBox="0 0 {w} {h}" width="100%">{grade}<polyline points="{pts}" fill="none" stroke="#7c93fb" '
+    return (f'<svg viewBox="0 0 {w} {h}" width="100%">{grade}<polyline points="{pts}" fill="none" stroke="#6d8fb6" '
             f'stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>{bolas}{eixo}</svg>')
 
 
@@ -777,10 +774,10 @@ def _barras(rot, vals, w=360, h=210, fmt=str):
                   + (f'<rect x="{x:.1f}" y="{bot - fh:.1f}" width="{bw:.1f}" height="{fh:.1f}" rx="{bw / 2:.1f}" '
                      f'fill="url(#br{u})"/>' if v > 0 else "")
                   + f'<text x="{x + bw / 2:.1f}" y="{top - 8}" text-anchor="middle" font-size="12" font-weight="700" '
-                    f'fill="#4f67e8">{fmt(v)}</text>'
+                    f'fill="#3b719f">{fmt(v)}</text>'
                   + f'<text x="{x + bw / 2:.1f}" y="{h - 12}" text-anchor="middle" font-size="11" fill="#8a97ab">{r}</text>')
     return (f'<svg viewBox="0 0 {w} {h}" width="100%"><defs><linearGradient id="br{u}" x1="0" y1="0" x2="0" y2="1">'
-            f'<stop offset="0" stop-color="#7c93fb"/><stop offset="1" stop-color="#4f67e8"/></linearGradient></defs>'
+            f'<stop offset="0" stop-color="#6d8fb6"/><stop offset="1" stop-color="#3b719f"/></linearGradient></defs>'
             f'{corpo}</svg>')
 
 
@@ -852,7 +849,7 @@ def montar_gestao(g, sel, hoje):
     decididos = int(aprov + reprov)
     taxa = reprov / decididos * 100 if decididos else 0
     k3 = (f'<div class="pf-card"><div class="pf-t">Taxa de reprovação</div><div class="pf-v">{taxa:.0f}%</div>'
-          f'<div class="pf-s" style="font-weight:600;color:#2c3e57">{int(reprov)} reprovados de {decididos} relatórios decididos</div>'
+          f'<div class="pf-s" style="font-weight:600;color:#1f3a57">{int(reprov)} reprovados de {decididos} relatórios decididos</div>'
           f'<div class="pf-s">Equipamentos devolvidos sem reparo</div></div>')
 
     k4 = (f'<div class="pf-card pf-blue"><div class="pf-t">Em andamento</div>'
@@ -954,7 +951,7 @@ with st.sidebar:
             st.session_state["sidebar_expanded"] = True
             st.rerun()
 
-    st.markdown('<div style="border-bottom:1px solid #e8edfb;margin-bottom:16px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="border-bottom:1px solid rgba(255,255,255,.22);margin-bottom:16px;"></div>', unsafe_allow_html=True)
 
     rotulos = nomes_completos if expandido else icones_apenas
     for _k, _label in zip(chaves, rotulos):
@@ -973,10 +970,18 @@ pagina = st.session_state["pagina_conserto"]
 
 
 # ======================= CABEÇALHO DA PÁGINA =======================
-st.markdown("""
+PAGINAS = {
+    "gestao": ("Visão geral.", "Lead time, volume e gargalos do conserto, em tempo real."),
+    "consulta": ("Onde está o equipamento.", "Digite a NF, o CAS ou a Service Notification e veja o fluxo completo."),
+    "casos": ("Em andamento.", "Todos os casos abertos, dos mais antigos aos mais recentes."),
+    "gerenciar": ("Inserir ou atualizar.", "O que você registra aqui vai direto para a planilha."),
+}
+_tit, _sub = PAGINAS.get(pagina, ("Hub de Conserto.", ""))
+st.markdown(f"""
     <div class="header-banner">
-        <h1>HUB DE CONSERTO</h1>
-        <p>Acompanhamento de equipamentos em reparo — do registro à devolução</p>
+        <div class="hb-kicker">HUB DE CONSERTO</div>
+        <h1>{esc(_tit)}</h1>
+        <p>{esc(_sub)}</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -1067,10 +1072,7 @@ elif pagina == "gerenciar":
 
     with st.form("form_case"):
         # Bloco 1
-        st.markdown("""
-            <div class="form-section-card">
-                <div style="font-size: 15px; font-weight: 700; color: #4f67e8; margin-bottom: 15px;">📁 Bloco 1: Registro de Clientes & Logística</div>
-        """, unsafe_allow_html=True)
+        st.markdown('<div class="form-title">📁 Bloco 1: Registro de Clientes & Logística</div>', unsafe_allow_html=True)
         
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -1086,13 +1088,9 @@ elif pagina == "gerenciar":
             cas = st.text_input("CAS-SO-BR (CRM)", value=caso_existente["cas"] if caso_existente is not None else "")
             service = st.text_input("Service Notification", value=caso_existente["service"] if caso_existente is not None else "")
         
-        st.markdown("</div>", unsafe_allow_html=True)
 
         # Bloco 2
-        st.markdown("""
-            <div class="form-section-card">
-                <div style="font-size: 15px; font-weight: 700; color: #4f67e8; margin-bottom: 15px;">🔍 Bloco 2: Verificação, Aprovação & Reparo</div>
-        """, unsafe_allow_html=True)
+        st.markdown('<div class="form-title">🔍 Bloco 2: Verificação, Aprovação & Reparo</div>', unsafe_allow_html=True)
         
         c4, c5, c6 = st.columns(3)
         with c4:
@@ -1107,13 +1105,9 @@ elif pagina == "gerenciar":
             data_ordem = st.text_input("Data da Ordem do Pedido", value=caso_existente["data_ordem"] if caso_existente is not None else "")
             data_reparo = st.text_input("Data Reparo Finalizado", value=caso_existente["data_reparo"] if caso_existente is not None else "")
         
-        st.markdown("</div>", unsafe_allow_html=True)
 
         # Bloco 3
-        st.markdown("""
-            <div class="form-section-card">
-                <div style="font-size: 15px; font-weight: 700; color: #4f67e8; margin-bottom: 15px;">🚚 Bloco 3: Devolução & Conclusão</div>
-        """, unsafe_allow_html=True)
+        st.markdown('<div class="form-title">🚚 Bloco 3: Devolução & Conclusão</div>', unsafe_allow_html=True)
         
         c7, c8 = st.columns(2)
         with c7:
@@ -1122,7 +1116,6 @@ elif pagina == "gerenciar":
         with c8:
             status_concl = st.text_input("Status de conclusão", value=caso_existente["status_concl"] if caso_existente is not None else "")
         
-        st.markdown("</div>", unsafe_allow_html=True)
 
         submitted = st.form_submit_button("💾 Salvar Dados na Planilha", use_container_width=True)
 
