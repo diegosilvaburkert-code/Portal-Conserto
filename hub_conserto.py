@@ -478,20 +478,26 @@ def compacta(h):
     return "\n".join(l.strip() for l in h.splitlines() if l.strip())
 
 
+# CSS padronizado idêntico ao do Conserto/Reparo (.tl-wrap, .tl-item.cur, etc.)
 CSS_TL = """<style>
-.stepper-wrapper{position:relative;display:flex;justify-content:space-between;margin:28px 0 14px}
-.stepper-wrapper::before{content:"";position:absolute;top:15px;left:0;width:100%;height:12px;background:#dbdbdb;border-radius:10px;z-index:1}
-.seg{position:absolute;top:15px;height:12px;z-index:2}
-.stepper-item{position:relative;display:flex;flex-direction:column;align-items:center;flex:1;z-index:3}
-.step-counter{width:42px;height:42px;display:flex;justify-content:center;align-items:center;background:#fff;border:4px solid #cbd6e2;border-radius:50%;font-weight:bold;color:#cbd6e2;font-size:17px;box-shadow:0 2px 5px rgba(0,0,0,.1);box-sizing:border-box}
-.step-name{margin-top:8px;font-size:12px;font-weight:600;color:#5c6b73;text-align:center;padding:0 4px}
-.stepper-item.completed .step-counter{background:#2fae6e;border-color:#2fae6e;color:#fff}
-.stepper-item.completed .step-name{color:#3b719f;font-weight:700}
-.stepper-item.blocked .step-counter{background:#e53935;border-color:#e53935;color:#fff}
-.stepper-item.blocked .step-name{color:#e53935;font-weight:700}
-.stepper-item.warn .step-counter{background:#f5b301;border-color:#f5b301;color:#fff}
-.stepper-item.warn .step-name{color:#b7791f;font-weight:700}
-.stepper-item.skipped .step-counter{background:#e1e9f5;border-color:#c5d3e8;color:#7d8fa8}
+.tl-wrap{position:relative;display:flex;justify-content:space-between;margin:26px 0 6px}
+.tl-wrap::before{content:"";position:absolute;top:16px;left:0;width:100%;height:12px;background:#dbe5f0;border-radius:10px;z-index:1}
+.tl-seg{position:absolute;top:16px;height:12px;z-index:2}
+.tl-item{position:relative;display:flex;flex-direction:column;align-items:center;flex:1;z-index:3;min-width:0}
+.tl-c{width:44px;height:44px;border-radius:50%;box-sizing:border-box;background:#fff;border:4px solid #cbd6e2;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.10)}
+.tl-n{margin-top:9px;font-size:12.5px;font-weight:600;color:#6b7a90;text-align:center;padding:0 4px;line-height:1.25}
+.tl-t{margin-top:5px;min-height:18px;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#3b719f}
+.tl-item.completed .tl-c{background:#2fae6e;border-color:#2fae6e}
+.tl-item.completed .tl-n{color:#2c5a82;font-weight:700}
+.tl-item.cur .tl-c{border-color:#3b719f;box-shadow:0 0 0 6px rgba(59,113,159,.16),0 2px 6px rgba(0,0,0,.10)}
+.tl-item.cur .tl-c::after{content:"";width:14px;height:14px;border-radius:50%;background:#3b719f}
+.tl-item.cur .tl-n{color:#2c5a82;font-weight:800}
+.tl-item.blocked .tl-c{background:#e53935;border-color:#e53935}
+.tl-item.blocked .tl-n{color:#e53935;font-weight:800}
+.tl-item.blocked .tl-t{color:#e53935}
+.tl-item.warn .tl-c{background:#f5b301;border-color:#f5b301;color:#fff}
+.tl-item.warn .tl-n{color:#b7791f;font-weight:700}
+.tl-item.skipped .tl-c{background:#e1e9f5;border-color:#c5d3e8;color:#7d8fa8}
 </style>"""
 
 COR_TRECHO = {"ok": "#2fae6e", "bloqueado": "#e53935", "nao_realizado": "#f5b301", "pulado": "#c5d3e8"}
@@ -499,6 +505,9 @@ COR_TRECHO = {"ok": "#2fae6e", "bloqueado": "#e53935", "nao_realizado": "#f5b301
 
 def html_timeline(estados):
     n = len(estados)
+    # Identifica a primeira etapa pendente (que será marcada como 'cur' / em andamento)
+    atual_idx = next((i for i, e in enumerate(estados) if e == "pendente"), -1)
+    
     segs = ""
     for k, e in enumerate(estados, start=1):
         cor = COR_TRECHO.get(e)
@@ -507,17 +516,22 @@ def html_timeline(estados):
         ini = 0 if k == 1 else (k - 1.5) / n * 100
         larg = (0.5 if k == 1 else 1) / n * 100 + 0.15
         raio = "10px 0 0 10px" if k == 1 else "0"
-        segs += f'<div class="seg" style="left:{ini:.3f}%;width:{larg:.3f}%;background:{cor};border-radius:{raio}"></div>'
+        segs += f'<div class="tl-seg" style="left:{ini:.3f}%;width:{larg:.3f}%;background:{cor};border-radius:{raio}"></div>'
     if estados[-1] == "ok":
-        segs += f'<div class="seg" style="left:{(n - 0.5) / n * 100:.3f}%;width:{0.5 / n * 100:.3f}%;background:{COR_TRECHO["ok"]};border-radius:0 10px 10px 0"></div>'
+        segs += f'<div class="tl-seg" style="left:{(n - 0.5) / n * 100:.3f}%;width:{0.5 / n * 100:.3f}%;background:{COR_TRECHO["ok"]};border-radius:0 10px 10px 0"></div>'
+    
     itens = ""
-    for nome, e in zip(NOMES_FASES, estados):
-        cls = {"ok": "completed", "bloqueado": "blocked", "nao_realizado": "warn", "pulado": "skipped", "pendente": ""}[e]
-        ic = {"ok": "✓", "bloqueado": "✕", "nao_realizado": "!", "pulado": "–", "pendente": ""}[e]
+    for i, (nome, e) in enumerate(zip(NOMES_FASES, estados)):
+        is_cur = (i == atual_idx and e == "pendente")
+        cls = "completed" if e == "ok" else "blocked" if e == "bloqueado" else "warn" if e == "nao_realizado" else "skipped" if e == "pulado" else ("cur" if is_cur else "")
+        ic = "✓" if e == "ok" else "✕" if e == "bloqueado" else "!" if e == "nao_realizado" else "–" if e == "pulado" else ""
+        
+        tag = "Bloqueado" if e == "bloqueado" else ("Em andamento" if is_cur else ("Concluído" if e == "ok" else ""))
         if e == "nao_realizado":
             nome = f"{nome} não realizado"
-        itens += f'<div class="stepper-item {cls}"><div class="step-counter">{ic}</div><div class="step-name">{nome}</div></div>'
-    return compacta(CSS_TL + f'<div class="stepper-wrapper">{segs}{itens}</div>')
+            
+        itens += f'<div class="tl-item {cls}"><div class="tl-c">{ic}</div><div class="tl-n">{nome}</div><div class="tl-t">{tag}</div></div>'
+    return compacta(CSS_TL + f'<div class="tl-wrap">{segs}{itens}</div>')
 
 
 CSS_CARDS = """<style>
