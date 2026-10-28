@@ -13,6 +13,10 @@ import streamlit.components.v1 as components
 LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1rZto32QSflOjbx9Gp9tC9geyrA9WzJ6tIHbX6zAnXsU"
 NOME_DA_ABA = "Lead Time"
 
+# Link da Planilha da Logística para integração bidirecional
+LINK_PLANILHA_LOGISTICA = "https://google.com/spreadsheets/d/1cYhrFo_JVrTqtaxHXqiKc_gOl-En0FEYfpVs-58e9S0/edit?gid=0#gid=0"
+NOME_ABA_LOGISTICA = "Retorno Conserto"
+
 # Regras do fluxo
 APROVACOES_OK = {"aprovado", "cortesia", "garantia"}      # relatório aprovado -> segue para reparo
 APROVACOES_REPROVADAS = {"reprovado"}                      # relatório reprovado -> sem reparo, vai para devolução
@@ -50,7 +54,6 @@ st.markdown(f"""
             padding-left: 1.2rem;
             padding-right: 1.2rem;
         }}
-        /* ===== BANNER: grande, direto, palavra de impacto + ponto final ===== */
         .header-banner {{
             position: relative; overflow: hidden;
             background: linear-gradient(160deg, #6d8fb6 0%, #5681ac 48%, #3b719f 100%);
@@ -88,7 +91,6 @@ st.markdown(f"""
             .stApp .header-banner p {{ max-width: 100%; }}
         }}
 
-        /* ===== MENU LATERAL FIXO / DINÂMICO (azul Pioneers) ===== */
         section[data-testid="stSidebar"] {{
             width: {sb_width} !important;
             min-width: {sb_width} !important;
@@ -165,14 +167,12 @@ st.markdown(f"""
             border: 1px solid rgba(255,255,255,.30); white-space: nowrap;
         }}
 
-        /* Ajustes e Centralização da Área Principal */
         .stApp h2, .stApp h3, .stApp h4, .stApp p, .stMarkdown p {{ text-align: center !important; }}
         .stAlert {{ border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center !important; }}
         [data-testid="stWidgetLabel"] {{ text-align: center !important; display: block !important; width: 100% !important; }}
         [data-testid="stTextInput"] div[data-baseweb="input"] {{ max-width: 560px !important; margin: 0 auto !important; }}
         [data-testid="stTextInput"] input {{ text-align: center !important; }}
 
-        /* ===== ESTILOS REFINADOS PARA O FORMULÁRIO ===== */
         .stForm [data-testid="stWidgetLabel"] label p, 
         .stRadio [data-testid="stWidgetLabel"] label p,
         .stSelectbox [data-testid="stWidgetLabel"] label p,
@@ -295,6 +295,53 @@ def parse_data(s):
     return d if pd.notna(d) and d.year >= 2020 else pd.NaT
 
 
+# ======================= INTEGRAÇÃO COM LOGÍSTICA =======================
+@st.cache_data(ttl=60)
+def ler_dados_logistica():
+    """
+    Lê os dados da planilha da Logística (Retorno Conserto) para cruzar
+    informações de recebimento, entrada física e liberação com o Hub.
+    """
+    try:
+        sh_log = conectar().open_by_url(LINK_PLANILHA_LOGISTICA)
+        valores_log = sh_log.worksheet(NOME_ABA_LOGISTICA).get_all_values()
+        
+        ini, cab = 2, None
+        for i, l in enumerate(valores_log[:8]):
+            if any("nota do cliente" in _norm(c) for c in l):
+                ini, cab = i + 1, [_norm(c) for c in l]
+                break
+        
+        def achar_col(termos, padrao):
+            if cab is None: return padrao
+            for j, h in enumerate(cab):
+                if all(t in h for t in termos): return j
+            return padrao
+
+        j_rec = achar_col(("recebimento", "data"), 0)
+        j_nf = achar_col(("numero", "nota"), 1)
+        j_cli = achar_col(("cliente",), 2)
+        j_ent_por = achar_col(("entrada", "realizada"), 4)
+        j_ent_dt = achar_col(("entrada", "data"), 5)
+        j_lib = achar_col(("liberado",), 7)
+        
+        mapa_log = {}
+        for l in valores_log[ini:]:
+            if len(l) > max(j_nf, j_cli):
+                nf = str(l[j_nf]).strip()
+                if nf:
+                    mapa_log[nf] = {
+                        "recebimento": l[j_rec].strip() if j_rec < len(l) else "",
+                        "cliente": l[j_cli].strip() if j_cli < len(l) else "",
+                        "entrada_por": l[j_ent_por].strip() if j_ent_por < len(l) else "",
+                        "data_entrada": l[j_ent_dt].strip() if j_ent_dt < len(l) else "",
+                        "liberado": str(l[j_lib]).strip() if j_lib < len(l) else ""
+                    }
+        return mapa_log
+    except Exception:
+        return {}
+
+
 # ======================= REGRAS DO FLUXO =======================
 def avaliar(r):
     f = lambda k: bool(r[k])
@@ -400,12 +447,12 @@ def conectar():
     dic_chaves = json.loads(info_json, strict=False)
     if "private_key" in dic_chaves:
         dic_chaves["private_key"] = dic_chaves["private_key"].replace("\\\\n", "\n").replace("\\n", "\n")
-    return gspread.service_account_from_dict(dic_chaves).open_by_url(LINK_PLANILHA)
+    return gspread.service_account_from_dict(dic_chaves)
 
 
 @st.cache_data(ttl=300)
 def ler_valores():
-    return conectar().worksheet(NOME_DA_ABA).get_all_values()
+    return conectar().open_by_url(LINK_PLANILHA).worksheet(NOME_DA_ABA).get_all_values()
 
 
 def ler_casos(valores, hoje):
@@ -429,6 +476,13 @@ def ler_casos(valores, hoje):
         if reg["cliente"] or reg["nf"]:
             linhas.append(reg)
     df = pd.DataFrame(linhas)
+    
+    # Cruza com os dados da Logística automaticamente
+    dados_log = ler_dados_logistica()
+    df["log_recebimento"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("recebimento", ""))
+    df["log_entrada_por"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("entrada_por", ""))
+    df["log_data_entrada"] = df["nf"].map(lambda x: dados_log.get(x, {}).get("data_entrada", ""))
+
     av = [avaliar(r) for r in df.to_dict("records")]
     df["status"] = [a["status"] for a in av]
     df["grupo"] = [a["grupo"] for a in av]
@@ -441,7 +495,7 @@ def ler_casos(valores, hoje):
 
 def salvar_caso_planilha(dados_form, row_num=None):
     try:
-        sh = conectar().worksheet(NOME_DA_ABA)
+        sh = conectar().open_by_url(LINK_PLANILHA).worksheet(NOME_DA_ABA)
         valores = sh.get_all_values()
         
         ini, cab = 4, None
@@ -1029,7 +1083,18 @@ if pagina == "consulta":
                 if av["faltam"]:
                     st.warning("Falta preencher na planilha: " + " · ".join(av["faltam"]))
                 dias = f"{int(r['dias'])} dia(s)" if pd.notna(r["dias"]) else "—"
-                st.markdown(compacta(CSS_CARDS + f'<div class="hb-chips"><span class="hb-chip">📅 Recebido em <b>{esc(r["data_receb"] or "—")}</b></span>'
+                
+                # Exibição cruzada dos dados vindos da Logística
+                log_rec = r.get("log_recebimento", "")
+                log_ent_por = r.get("log_entrada_por", "")
+                log_dt_ent = r.get("log_data_entrada", "")
+                
+                info_logistica_extra = f""
+                if log_rec or log_dt_ent:
+                    info_logistica_extra = f'<span class="hb-chip">📦 Recebido na Logística em <b>{esc(log_rec or log_dt_ent)}</b></span>'
+                
+                st.markdown(compacta(CSS_CARDS + f'<div class="hb-chips"><span class="hb-chip">📅 Data Hub <b>{esc(r["data_receb"] or "—")}</b></span>'
+                                     f'{info_logistica_extra}'
                                      f'<span class="hb-chip">⏱️ Em atendimento há <b>{dias}</b></span></div>'), unsafe_allow_html=True)
                 st.markdown("### ⏳ Fluxo do Conserto:")
                 st.markdown(html_timeline(av["estados"]), unsafe_allow_html=True)
@@ -1080,7 +1145,6 @@ elif pagina == "gerenciar":
                 st.warning("Nenhum case encontrado com esse número de NF ou Service Notification.")
 
     with st.form("form_case"):
-        # Bloco 1
         st.markdown('<div class="form-title">📁 Bloco 1: Registro de Clientes & Logística</div>', unsafe_allow_html=True)
         
         c1, c2, c3 = st.columns(3)
@@ -1097,8 +1161,6 @@ elif pagina == "gerenciar":
             cas = st.text_input("CAS-SO-BR (CRM)", value=caso_existente["cas"] if caso_existente is not None else "")
             service = st.text_input("Service Notification", value=caso_existente["service"] if caso_existente is not None else "")
         
-
-        # Bloco 2
         st.markdown('<div class="form-title">🔍 Bloco 2: Verificação, Aprovação & Reparo</div>', unsafe_allow_html=True)
         
         c4, c5, c6 = st.columns(3)
@@ -1114,8 +1176,6 @@ elif pagina == "gerenciar":
             data_ordem = st.text_input("Data da Ordem do Pedido", value=caso_existente["data_ordem"] if caso_existente is not None else "")
             data_reparo = st.text_input("Data Reparo Finalizado", value=caso_existente["data_reparo"] if caso_existente is not None else "")
         
-
-        # Bloco 3
         st.markdown('<div class="form-title">🚚 Bloco 3: Devolução & Conclusão</div>', unsafe_allow_html=True)
         
         c7, c8 = st.columns(2)
@@ -1125,7 +1185,6 @@ elif pagina == "gerenciar":
         with c8:
             status_concl = st.text_input("Status de conclusão", value=caso_existente["status_concl"] if caso_existente is not None else "")
         
-
         submitted = st.form_submit_button("💾 Salvar Dados na Planilha", use_container_width=True)
 
         if submitted:
