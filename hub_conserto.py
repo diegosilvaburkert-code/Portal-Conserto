@@ -46,7 +46,9 @@ st.markdown(f"""
         }}
         .block-container {{
             padding-top: 1.6rem;
-            max-width: 1500px;
+            max-width: 100% !important;
+            padding-left: 2rem;
+            padding-right: 2rem;
         }}
         /* ===== BANNER: grande, direto, palavra de impacto + ponto final ===== */
         .header-banner {{
@@ -534,10 +536,12 @@ CSS_CARDS = """<style>
 .hb-row span{color:#6b7a90}.hb-row b{color:#3b719f;text-align:right;overflow-wrap:anywhere}.hb-row b.vz{color:#b3bdcc;font-weight:500}
 .hb-chips{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
 .hb-chip{background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;color:#1f3a57;box-shadow:0 2px 6px rgba(59,113,159,.10)}
-.hb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:8px 0 16px}
-.hb-kpi{background:#fff;border-radius:20px;padding:24px 20px;text-align:center;box-shadow:0 6px 18px rgba(59,113,159,.12);border-top:6px solid #3b719f;min-height:130px;display:flex;flex-direction:column;justify-content:center}
-.hb-kpi .n{font-size:42px;font-weight:800;color:#3b719f;line-height:1.1}
-.hb-kpi .l{font-size:13px;font-weight:700;color:#5c6b73;margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
+.hb-kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin:8px 0 16px}
+@media(max-width:1400px){.hb-kpis{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:900px){.hb-kpis{grid-template-columns:repeat(2,1fr)}}
+.hb-kpi{background:#fff;border-radius:18px;padding:18px 12px;text-align:center;box-shadow:0 6px 18px rgba(59,113,159,.12);border-top:6px solid #3b719f;min-height:120px;display:flex;flex-direction:column;justify-content:center}
+.hb-kpi .n{font-size:34px;font-weight:800;color:#3b719f;line-height:1.1}
+.hb-kpi .l{font-size:11.5px;font-weight:700;color:#5c6b73;margin-top:6px;text-transform:uppercase;letter-spacing:.3px}
 </style>"""
 
 FASES_CARDS = [
@@ -576,11 +580,9 @@ def html_cards(r, estados):
 
 
 def html_kpis(df):
-    # Desconsidera finalizados das métricas principais de andamento
     abertos = df[~df["concluido"]]
     cont = abertos["grupo"].value_counts()
     
-    # Nova estrutura de colunas solicitada: Coluna A, M, S
     card_ordem = [
         ("A fazer", COR_GRUPO["A fazer"]),
         ("Follow up", COR_GRUPO["Follow up"]),
@@ -591,7 +593,7 @@ def html_kpis(df):
         ("Finalizados", COR_GRUPO["Finalizados"])
     ]
     
-    cards = f'<div class="hb-kpi" style="border-top-color:#3b719f"><div class="n">{len(abertos)}</div><div class="l">Em andamento (Geral)</div></div>'
+    cards = f'<div class="hb-kpi" style="border-top-color:#3b719f"><div class="n">{len(abertos)}</div><div class="l">Em andamento</div></div>'
     for g, cor in card_ordem:
         if g == "Finalizados":
             val = int(df["concluido"].sum())
@@ -810,7 +812,7 @@ def _lista(itens, fmt):
 
 
 # ======================= GESTÃO (DASHBOARD) =======================
-CLIENTES_IGNORADOS_GESTAO = []  # ex.: ["burkert"] para tirar clientes internos dos indicadores
+CLIENTES_IGNORADOS_GESTAO = []
 
 
 def preparar_gestao(casos):
