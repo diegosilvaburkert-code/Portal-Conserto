@@ -1159,4 +1159,4 @@ elif pagina == "gerenciar":
                     else:
                         st.error(msg)
 
-st.markdown("<br><hr><div style='text-align: center; color: #6b7a90; font-size: 13px;'>Hub de Conserto · Desenvolvido por Diego Elvis Beta 2.0</div>", unsafe_allow_html=True)
+st.markdown("<br><hr><div style='text-align: center; color: #6b7a90; font-size: 13px;'>Hub de Conserto · Desenvolvido por Diego Elvis</div>", unsafe_allow_html=True)
