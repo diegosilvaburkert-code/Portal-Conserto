@@ -263,7 +263,6 @@ MES = {"jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6, "jul": 7, "ag
 NOMES_FASES = ["Registro", "Recebimento Logística", "Recebimento Serviços", "Verificação",
                "Aprovação", "Reparo", "Devolução", "Conclusão"]
 
-# Cores exatas mapeadas para cada grupo de status correspondente aos cards
 COR_GRUPO = {
     "A fazer": "#5681ac", 
     "Follow up": "#e0a800", 
@@ -620,7 +619,7 @@ def html_kpis(df):
     return compacta(CSS_CARDS + f'<div class="hb-kpis">{cards}</div>')
 
 
-# ---------------- TABELA COM FILTROS E INDICADOR LATERAL NAS LINHAS ----------------
+# ---------------- TABELA COM FUNDO LIMPO (BRANCO/AZULADO) E BARRA LATERAL DE STATUS ----------------
 _CSS_TAB = """
 body{margin:0;background:transparent;font-family:"Source Sans Pro",Arial,sans-serif;color:#1f3a57}
 .table-container{background:#fff;border-radius:18px;box-shadow:0 4px 20px rgba(59,113,159,.08);overflow:hidden;border:1px solid #e2e8f0;margin-top:10px}
@@ -638,7 +637,8 @@ th i{font-style:normal;margin-left:4px;font-size:11px;opacity:0.8}
 .filter-row td{padding:8px 6px;text-align:center}
 .filter-row input,.filter-row select{width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#fff;color:#1e293b}
 td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#334155;background:#ffffff}
-tr:hover td{background:#f8fafc}
+tr:nth-child(even) td{background:#fafcfd}
+tr:hover td{background:#f1f5f9}
 .status-pill{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.3px}
 """
 
@@ -698,7 +698,6 @@ col=__DIAS__;dir=-1;marcar();filtrar();
 
 
 def html_tabela_interativa(df):
-    # Mantém apenas 1 coluna unificada de Status com base no grupo unificado
     cols = [("Cliente", "cliente", "t"), ("NF", "nf", "t"), ("CAS-SO-BR", "cas", "t"), ("Recebimento", "data_receb", "d"),
             ("Dias", "dias", "n"), ("Status", "grupo", "t")]
     regs = df.to_dict("records")
@@ -731,25 +730,25 @@ def html_tabela_interativa(df):
     linhas = ""
     for r in regs:
         d = r["dias"]
-        # Alerta de dias (vermelho/amarelo) ou fundo branco limpo padrão
-        bg_alerta = "#fde2e2" if (pd.notna(d) and d >= ALERTA_VERMELHO_DIAS) else ("#fff3d6" if (pd.notna(d) and d >= ALERTA_AMARELO_DIAS) else "#ffffff")
-        
         grupo_status = r["grupo"]
         cor_status = COR_GRUPO.get(grupo_status, "#3b719f")
+        
+        # Cor de destaque opcional e discreta na lateral esquerda se estiver crítico (vermelho) ou atenção (amarelo)
+        borda_esquerda = "#e53935" if (pd.notna(d) and d >= ALERTA_VERMELHO_DIAS) else ("#f5b301" if (pd.notna(d) and d >= ALERTA_AMARELO_DIAS) else "#cbd5e1")
         
         tds = ""
         for i, (_, k, t) in enumerate(cols):
             val_txt = texto(r, k)
             val_chave = chave(r, k, t)
             
-            # Se for a coluna de status unificada, adicionamos a tag com a cor correspondente e a barra lateral
             if k == "grupo":
                 conteudo = f'<span class="status-pill" style="background:{cor_status}">{esc(val_txt)}</span>'
-                tds += f'<td data-v="{esc(val_chave)}" style="border-left: 5px solid {cor_status}; background: {bg_alerta};">{conteudo}</td>'
+                tds += f'<td data-v="{esc(val_chave)}">{conteudo}</td>'
             else:
-                tds += f'<td data-v="{esc(val_chave)}" style="background: {bg_alerta};">{esc(val_txt)}</td>'
+                tds += f'<td data-v="{esc(val_chave)}">{esc(val_txt)}</td>'
                 
-        linhas += f'<tr>{tds}</tr>'
+        # Adicionamos uma barra lateral esquerda fina indicando a urgência/alerta de dias sem colorir a linha inteira
+        linhas += f'<tr style="border-left: 5px solid {borda_esquerda};">{tds}</tr>'
         
     js = _JS_TAB.replace("__DIAS__", str([c[1] for c in cols].index("dias")))
     
