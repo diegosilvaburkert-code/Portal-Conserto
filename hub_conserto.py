@@ -262,10 +262,17 @@ LABEL = {
 MES = {"jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6, "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12}
 NOMES_FASES = ["Registro", "Recebimento Logística", "Recebimento Serviços", "Verificação",
                "Aprovação", "Reparo", "Devolução", "Conclusão"]
+
+# Cores exatas mapeadas para cada grupo de status correspondente aos cards
 COR_GRUPO = {
-    "A fazer": "#5681ac", "Follow up": "#e0a800", "Importação": "#6850d8",
-    "Garantia": "#6aa84f", "Reprovado": "#e53935", "Aprovado": "#1e8e3e",
-    "Finalizados": "#6b7280", "Dados incompletos": "#9aa7ba"
+    "A fazer": "#5681ac", 
+    "Follow up": "#e0a800", 
+    "Importação": "#6850d8",
+    "Garantia": "#6aa84f", 
+    "Reprovado": "#e53935", 
+    "Aprovado": "#1e8e3e",
+    "Finalizado": "#6b7280", 
+    "Dados incompletos": "#9aa7ba"
 }
 
 
@@ -329,9 +336,7 @@ def avaliar(r):
         aviso = ""
 
     def res(status, grupo, detalhe, faltam=()):
-        # Remove emojis/bolinhas dos status textuais para manter limpo e coeso
-        status_limpo = re.sub(r'^[^\w\s]+', '', status).strip()
-        return {"estados": est, "status": status_limpo, "grupo": grupo, "detalhe": detalhe + aviso,
+        return {"estados": est, "status": status, "grupo": grupo, "detalhe": detalhe + aviso,
                 "faltam": list(faltam), "concluido": bool(p8 or final)}
 
     if final:
@@ -342,53 +347,53 @@ def avaliar(r):
             d += (" Etapas não realizadas (desconsideradas): " + ", ".join(nao_feitas) + ".") if nao_feitas else " Todas as etapas foram concluídas."
         if r["status_devol"]:
             d += f" Status da devolução: {r['status_devol']}."
-        return res("Finalizado", "Finalizados", d)
+        return res("Finalizado", "Finalizado", d)
 
     def devolucao():
         extra = f" Status da devolução: {r['status_devol']}." if r["status_devol"] else ""
         extra += f" Status de conclusão: {r['status_concl']}." if r["status_concl"] else ""
-        return res("Devolução em andamento", "Follow up",
+        return res("Follow up", "Follow up",
                    "Devolução solicitada." + extra, falta(["status_concl"]))
 
     if not p1:
         return res("Dados incompletos", "Dados incompletos", "O registro não tem o nome do cliente.", falta(["cliente"]))
     if not p2:
-        return res("Aguardando recebimento (Logística)", "A fazer",
+        return res("A fazer", "A fazer",
                    "Cliente registrado. Falta confirmar o recebimento do material na Logística.", falta(req2))
     if not p3:
-        return res("Aguardando registro no CRM (Serviços)", "A fazer",
+        return res("A fazer", "A fazer",
                    "Material recebido pela Logística. Aguardando o registro no CRM e a Service Notification pelo setor de Serviços.",
                    falta(req3))
     if not p4:
-        return res("Em verificação / diagnóstico", "A fazer",
+        return res("A fazer", "A fazer",
                    "Registro concluído. O equipamento está em verificação.", falta(["data_verif"]))
     if not (p5 or bloq):
         atual = f" Valor atual na planilha: '{r['aprovacao']}'." if r["aprovacao"] else ""
-        return res("Aguardando aprovação do relatório", "Follow up",
+        return res("Follow up", "Follow up",
                    f"Verificação concluída em {r['data_verif']}. Aguardando a decisão do relatório "
                    f"(Aprovado, Cortesia, Garantia ou Reprovado).{atual}", falta(["aprovacao"]))
     if bloq:
         if not p7:
-            return res("Relatório reprovado — aguardando solicitação de devolução", "Reprovado",
+            return res("Reprovado", "Reprovado",
                        "Relatório reprovado: não haverá reparo. Falta solicitar a devolução do equipamento.",
                        falta(["solic_devol"]))
-        return devolucao() if not p8 else res("Finalizado", "Finalizados", "Equipamento devolvido sem reparo. Processo concluído.")
+        return devolucao() if not p8 else res("Finalizado", "Finalizado", "Equipamento devolvido sem reparo. Processo concluído.")
     if not p6:
         if not dispensa and not f("aceite"):
-            return res("Aguardando aceite do pedido (Ordem SAP)", "Follow up",
+            return res("Follow up", "Follow up",
                        f"Relatório {r['aprovacao']}. Falta o aceite do pedido (Ordem SAP) para iniciar o reparo.",
                        falta(["aceite"]))
-        return res("Em reparo", "Importação",
+        return res("Importação", "Importação",
                    f"Relatório {r['aprovacao']}"
                    + (" (sem pedido)" if dispensa else f"; pedido {r['aceite']} aceito") + ". Equipamento em reparo.",
                    falta(["data_reparo"]))
     if not p7:
-        return res("Reparo finalizado — aguardando solicitação de devolução", "Follow up",
+        return res("Follow up", "Follow up",
                    f"Reparo finalizado em {r['data_reparo']}. Falta solicitar a devolução ao cliente.",
                    falta(["solic_devol"]))
     if not p8:
         return devolucao()
-    return res("Finalizado", "Finalizados", "Equipamento reparado, devolvido e processo concluído.")
+    return res("Finalizado", "Finalizado", "Equipamento reparado, devolvido e processo concluído.")
 
 
 # ======================= LEITURA E ESCRITA DA PLANILHA =======================
@@ -602,12 +607,12 @@ def html_kpis(df):
         ("Garantia", COR_GRUPO["Garantia"]),
         ("Reprovado", COR_GRUPO["Reprovado"]),
         ("Aprovado", COR_GRUPO["Aprovado"]),
-        ("Finalizados", COR_GRUPO["Finalizados"])
+        ("Finalizado", COR_GRUPO["Finalizado"])
     ]
     
     cards = ""
     for g, cor in card_ordem:
-        if g == "Finalizados":
+        if g == "Finalizado":
             val = int(df["concluido"].sum())
         else:
             val = int(cont.get(g, 0))
@@ -615,7 +620,7 @@ def html_kpis(df):
     return compacta(CSS_CARDS + f'<div class="hb-kpis">{cards}</div>')
 
 
-# ---------------- TABELA COM FILTROS ESTILO EXCEL (OCULTOS/CLEAN) ----------------
+# ---------------- TABELA COM FILTROS E INDICADOR LATERAL NAS LINHAS ----------------
 _CSS_TAB = """
 body{margin:0;background:transparent;font-family:"Source Sans Pro",Arial,sans-serif;color:#1f3a57}
 .table-container{background:#fff;border-radius:18px;box-shadow:0 4px 20px rgba(59,113,159,.08);overflow:hidden;border:1px solid #e2e8f0;margin-top:10px}
@@ -632,8 +637,9 @@ th i{font-style:normal;margin-left:4px;font-size:11px;opacity:0.8}
 .filter-row.active{display:table-row}
 .filter-row td{padding:8px 6px;text-align:center}
 .filter-row input,.filter-row select{width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#fff;color:#1e293b}
-td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#334155}
+td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#334155;background:#ffffff}
 tr:hover td{background:#f8fafc}
+.status-pill{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.3px}
 """
 
 _JS_TAB = """
@@ -692,8 +698,9 @@ col=__DIAS__;dir=-1;marcar();filtrar();
 
 
 def html_tabela_interativa(df):
+    # Mantém apenas 1 coluna unificada de Status com base no grupo unificado
     cols = [("Cliente", "cliente", "t"), ("NF", "nf", "t"), ("CAS-SO-BR", "cas", "t"), ("Recebimento", "data_receb", "d"),
-            ("Dias", "dias", "n"), ("Status", "status", "t"), ("Status de Conclusão", "status_concl", "t")]
+            ("Dias", "dias", "n"), ("Status", "grupo", "t")]
     regs = df.to_dict("records")
 
     def texto(r, k):
@@ -724,9 +731,25 @@ def html_tabela_interativa(df):
     linhas = ""
     for r in regs:
         d = r["dias"]
-        cor = ("#fde2e2" if d >= ALERTA_VERMELHO_DIAS else "#fff3d6" if d >= ALERTA_AMARELO_DIAS else "") if pd.notna(d) else ""
-        tds = "".join(f'<td data-v="{esc(chave(r, k, t))}">{esc(texto(r, k))}</td>' for _, k, t in cols)
-        linhas += f'<tr style="background:{cor}">{tds}</tr>'
+        # Alerta de dias (vermelho/amarelo) ou fundo branco limpo padrão
+        bg_alerta = "#fde2e2" if (pd.notna(d) and d >= ALERTA_VERMELHO_DIAS) else ("#fff3d6" if (pd.notna(d) and d >= ALERTA_AMARELO_DIAS) else "#ffffff")
+        
+        grupo_status = r["grupo"]
+        cor_status = COR_GRUPO.get(grupo_status, "#3b719f")
+        
+        tds = ""
+        for i, (_, k, t) in enumerate(cols):
+            val_txt = texto(r, k)
+            val_chave = chave(r, k, t)
+            
+            # Se for a coluna de status unificada, adicionamos a tag com a cor correspondente e a barra lateral
+            if k == "grupo":
+                conteudo = f'<span class="status-pill" style="background:{cor_status}">{esc(val_txt)}</span>'
+                tds += f'<td data-v="{esc(val_chave)}" style="border-left: 5px solid {cor_status}; background: {bg_alerta};">{conteudo}</td>'
+            else:
+                tds += f'<td data-v="{esc(val_chave)}" style="background: {bg_alerta};">{esc(val_txt)}</td>'
+                
+        linhas += f'<tr>{tds}</tr>'
         
     js = _JS_TAB.replace("__DIAS__", str([c[1] for c in cols].index("dias")))
     
