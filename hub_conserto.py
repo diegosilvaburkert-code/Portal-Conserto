@@ -329,7 +329,9 @@ def avaliar(r):
         aviso = ""
 
     def res(status, grupo, detalhe, faltam=()):
-        return {"estados": est, "status": status, "grupo": grupo, "detalhe": detalhe + aviso,
+        # Remove emojis/bolinhas dos status textuais para manter limpo e coeso
+        status_limpo = re.sub(r'^[^\w\s]+', '', status).strip()
+        return {"estados": est, "status": status_limpo, "grupo": grupo, "detalhe": detalhe + aviso,
                 "faltam": list(faltam), "concluido": bool(p8 or final)}
 
     if final:
@@ -340,53 +342,53 @@ def avaliar(r):
             d += (" Etapas não realizadas (desconsideradas): " + ", ".join(nao_feitas) + ".") if nao_feitas else " Todas as etapas foram concluídas."
         if r["status_devol"]:
             d += f" Status da devolução: {r['status_devol']}."
-        return res("🟢 Finalizado", "Finalizados", d)
+        return res("Finalizado", "Finalizados", d)
 
     def devolucao():
         extra = f" Status da devolução: {r['status_devol']}." if r["status_devol"] else ""
         extra += f" Status de conclusão: {r['status_concl']}." if r["status_concl"] else ""
-        return res("🚚 Devolução em andamento", "Follow up",
+        return res("Devolução em andamento", "Follow up",
                    "Devolução solicitada." + extra, falta(["status_concl"]))
 
     if not p1:
-        return res("⚪ Dados incompletos", "Dados incompletos", "O registro não tem o nome do cliente.", falta(["cliente"]))
+        return res("Dados incompletos", "Dados incompletos", "O registro não tem o nome do cliente.", falta(["cliente"]))
     if not p2:
-        return res("⚪ Aguardando recebimento (Logística)", "A fazer",
+        return res("Aguardando recebimento (Logística)", "A fazer",
                    "Cliente registrado. Falta confirmar o recebimento do material na Logística.", falta(req2))
     if not p3:
-        return res("🟡 Aguardando registro no CRM (Serviços)", "A fazer",
+        return res("Aguardando registro no CRM (Serviços)", "A fazer",
                    "Material recebido pela Logística. Aguardando o registro no CRM e a Service Notification pelo setor de Serviços.",
                    falta(req3))
     if not p4:
-        return res("🔵 Em verificação / diagnóstico", "A fazer",
+        return res("Em verificação / diagnóstico", "A fazer",
                    "Registro concluído. O equipamento está em verificação.", falta(["data_verif"]))
     if not (p5 or bloq):
         atual = f" Valor atual na planilha: '{r['aprovacao']}'." if r["aprovacao"] else ""
-        return res("🟠 Aguardando aprovação do relatório", "Follow up",
+        return res("Aguardando aprovação do relatório", "Follow up",
                    f"Verificação concluída em {r['data_verif']}. Aguardando a decisão do relatório "
                    f"(Aprovado, Cortesia, Garantia ou Reprovado).{atual}", falta(["aprovacao"]))
     if bloq:
         if not p7:
-            return res("🔴 Relatório reprovado — aguardando solicitação de devolução", "Reprovado",
+            return res("Relatório reprovado — aguardando solicitação de devolução", "Reprovado",
                        "Relatório reprovado: não haverá reparo. Falta solicitar a devolução do equipamento.",
                        falta(["solic_devol"]))
-        return devolucao() if not p8 else res("🟢 Concluído", "Finalizados", "Equipamento devolvido sem reparo. Processo concluído.")
+        return devolucao() if not p8 else res("Finalizado", "Finalizados", "Equipamento devolvido sem reparo. Processo concluído.")
     if not p6:
         if not dispensa and not f("aceite"):
-            return res("🟠 Aguardando aceite do pedido (Ordem SAP)", "Follow up",
+            return res("Aguardando aceite do pedido (Ordem SAP)", "Follow up",
                        f"Relatório {r['aprovacao']}. Falta o aceite do pedido (Ordem SAP) para iniciar o reparo.",
                        falta(["aceite"]))
-        return res("🛠️ Em reparo", "Importação",
+        return res("Em reparo", "Importação",
                    f"Relatório {r['aprovacao']}"
                    + (" (sem pedido)" if dispensa else f"; pedido {r['aceite']} aceito") + ". Equipamento em reparo.",
                    falta(["data_reparo"]))
     if not p7:
-        return res("📦 Reparo finalizado — aguardando solicitação de devolução", "Follow up",
+        return res("Reparo finalizado — aguardando solicitação de devolução", "Follow up",
                    f"Reparo finalizado em {r['data_reparo']}. Falta solicitar a devolução ao cliente.",
                    falta(["solic_devol"]))
     if not p8:
         return devolucao()
-    return res("🟢 Concluído", "Finalizados", "Equipamento reparado, devolvido e processo concluído.")
+    return res("Finalizado", "Finalizados", "Equipamento reparado, devolvido e processo concluído.")
 
 
 # ======================= LEITURA E ESCRITA DA PLANILHA =======================
@@ -478,7 +480,7 @@ def compacta(h):
     return "\n".join(l.strip() for l in h.splitlines() if l.strip())
 
 
-# CSS padronizado idêntico ao do Conserto/Reparo (.tl-wrap, .tl-item.cur, etc.)
+# CSS padronizado idêntico ao do Conserto/Reparo
 CSS_TL = """<style>
 .tl-wrap{position:relative;display:flex;justify-content:space-between;margin:26px 0 6px}
 .tl-wrap::before{content:"";position:absolute;top:16px;left:0;width:100%;height:12px;background:#dbe5f0;border-radius:10px;z-index:1}
@@ -505,7 +507,6 @@ COR_TRECHO = {"ok": "#2fae6e", "bloqueado": "#e53935", "nao_realizado": "#f5b301
 
 def html_timeline(estados):
     n = len(estados)
-    # Identifica a primeira etapa pendente (que será marcada como 'cur' / em andamento)
     atual_idx = next((i for i, e in enumerate(estados) if e == "pendente"), -1)
     
     segs = ""
@@ -614,34 +615,75 @@ def html_kpis(df):
     return compacta(CSS_CARDS + f'<div class="hb-kpis">{cards}</div>')
 
 
+# ---------------- TABELA COM FILTROS ESTILO EXCEL (OCULTOS/CLEAN) ----------------
 _CSS_TAB = """
 body{margin:0;background:transparent;font-family:"Source Sans Pro",Arial,sans-serif;color:#1f3a57}
-.top{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 8px;font-size:13px;color:#6b7a90}
-.top button{border:1px solid #3b719f;background:#fff;color:#3b719f;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
-.top button:hover{background:#3b719f;color:#fff}
-.tb{max-height:600px;overflow:auto;border-radius:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
-table{width:100%;border-collapse:collapse;font-size:14px}
-.hd th{position:sticky;top:0;height:41px;box-sizing:border-box;background:#3b719f;color:#fff;padding:0 8px;z-index:2;cursor:pointer;user-select:none;white-space:nowrap}
-.hd th:hover{background:#2c5a82}
-.ft td{position:sticky;top:41px;background:#e6eef6;padding:5px 6px;z-index:2;border-bottom:1px solid #d5e1f2}
-.ft input,.ft select{width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #c5d3e8;border-radius:5px;font-size:12px;background:#fff;color:#1f3a57}
-tbody td{padding:8px;border-bottom:1px solid #e4e9f0;text-align:center}
+.table-container{background:#fff;border-radius:18px;box-shadow:0 4px 20px rgba(59,113,159,.08);overflow:hidden;border:1px solid #e2e8f0;margin-top:10px}
+.table-header-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+.filter-toggle-btn{background:#3b719f;color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;transition:all .2s}
+.filter-toggle-btn:hover{background:#2c5a82}
+.record-count{font-size:13px;color:#64748b;font-weight:600}
+.tb-wrapper{max-height:560px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{position:sticky;top:0;background:#3b719f;color:#fff;padding:12px 10px;z-index:2;cursor:pointer;user-select:none;white-space:nowrap;text-align:center;font-weight:700}
+th:hover{background:#2c5a82}
+th i{font-style:normal;margin-left:4px;font-size:11px;opacity:0.8}
+.filter-row{display:none;background:#f1f5f9;border-bottom:2px solid #cbd5e1}
+.filter-row.active{display:table-row}
+.filter-row td{padding:8px 6px;text-align:center}
+.filter-row input,.filter-row select{width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#fff;color:#1e293b}
+td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#334155}
+tr:hover td{background:#f8fafc}
 """
+
 _JS_TAB = """
 const tb=document.querySelector('#t tbody');let rows=[...tb.rows];
-const ths=[...document.querySelectorAll('.hd th')];
-const fls=[...document.querySelectorAll('.ft [data-f]')];
-const cnt=document.getElementById('cnt');let col=-1,dir=1;
-function marcar(){ths.forEach((h,i)=>h.querySelector('i').textContent=i===col?(dir>0?' ▲':' ▼'):'');}
-function filtrar(){let n=0;rows.forEach(r=>{let ok=true;fls.forEach((el,i)=>{const v=el.value.toLowerCase();if(!v)return;
- const txt=r.cells[i].textContent.trim().toLowerCase();
- if(el.tagName==='SELECT'?txt!==v:txt.indexOf(v)<0)ok=false;});r.style.display=ok?'':'none';if(ok)n++;});
- cnt.textContent=n+' de '+rows.length+' caso(s)';}
-function ordenar(i){dir=(col===i)?-dir:1;col=i;const num=ths[i].dataset.t!=='t';
- rows.sort((a,b)=>{let x=a.cells[i].dataset.v,y=b.cells[i].dataset.v;
-  if(num){x=parseFloat(x);y=parseFloat(y);const nx=isNaN(x),ny=isNaN(y);if(nx&&ny)return 0;if(nx)return 1;if(ny)return -1;return (x-y)*dir;}
-  return x.localeCompare(y,'pt-BR')*dir;});
- rows.forEach(r=>tb.appendChild(r));marcar();}
+const ths=[...document.querySelectorAll('th[data-col]')];
+const fls=[...document.querySelectorAll('.filter-row [data-f]')];
+const cnt=document.getElementById('cnt');
+const toggleBtn=document.getElementById('toggleFilters');
+const filterRow=document.getElementById('filterRow');
+let col=-1,dir=1, filtersVisible=false;
+
+toggleBtn.addEventListener('click', ()=>{
+    filtersVisible = !filtersVisible;
+    filterRow.classList.toggle('active', filtersVisible);
+    toggleBtn.innerHTML = filtersVisible ? '🔍 Ocultar Filtros' : '🔍 Filtrar Tabela';
+});
+
+function marcar(){ths.forEach((h,i)=>h.querySelector('i').textContent=i===col?(dir>0?'▲':'▼'):'');}
+
+function filtrar(){
+    let n=0;
+    rows.forEach(r=>{
+        let ok=true;
+        fls.forEach((el,i)=>{
+            const v=el.value.toLowerCase();
+            if(!v)return;
+            const txt=r.cells[i].textContent.trim().toLowerCase();
+            if(el.tagName==='SELECT'?txt!==v:txt.indexOf(v)<0)ok=false;
+        });
+        r.style.display=ok?'':'none';
+        if(ok)n++;
+    });
+    cnt.textContent=n+' de '+rows.length+' caso(s)';
+}
+
+function ordenar(i){
+    dir=(col===i)?-dir:1;col=i;const num=ths[i].dataset.t!=='t';
+    rows.sort((a,b)=>{
+        let x=a.cells[i].dataset.v,y=b.cells[i].dataset.v;
+        if(num){
+            x=parseFloat(x);y=parseFloat(y);
+            const nx=isNaN(x),ny=isNaN(y);
+            if(nx&&ny)return 0;if(nx)return 1;if(ny)return -1;
+            return (x-y)*dir;
+        }
+        return x.localeCompare(y,'pt-BR')*dir;
+    });
+    rows.forEach(r=>tb.appendChild(r));marcar();
+}
+
 ths.forEach((h,i)=>h.addEventListener('click',()=>ordenar(i)));
 fls.forEach(el=>{el.addEventListener('input',filtrar);el.addEventListener('change',filtrar);});
 document.getElementById('lp').addEventListener('click',()=>{fls.forEach(el=>el.value='');filtrar();});
@@ -668,7 +710,8 @@ def html_tabela_interativa(df):
             return "" if pd.isna(d) else str(d.toordinal())
         return _norm(texto(r, k))
 
-    th = "".join(f'<th data-t="{t}">{n}<i></i></th>' for n, _, t in cols)
+    th = "".join(f'<th data-col data-t="{t}">{n}<i></i></th>' for n, _, t in cols)
+    
     fl = ""
     for n, k, t in cols:
         vals = sorted({texto(r, k) for r in regs}, key=_norm)
@@ -677,17 +720,25 @@ def html_tabela_interativa(df):
             fl += f'<td><select data-f>{ops}</select></td>'
         else:
             fl += '<td><input data-f type="text" placeholder="Filtrar..."></td>'
+            
     linhas = ""
     for r in regs:
         d = r["dias"]
         cor = ("#fde2e2" if d >= ALERTA_VERMELHO_DIAS else "#fff3d6" if d >= ALERTA_AMARELO_DIAS else "") if pd.notna(d) else ""
         tds = "".join(f'<td data-v="{esc(chave(r, k, t))}">{esc(texto(r, k))}</td>' for _, k, t in cols)
         linhas += f'<tr style="background:{cor}">{tds}</tr>'
+        
     js = _JS_TAB.replace("__DIAS__", str([c[1] for c in cols].index("dias")))
+    
     return (f'<!DOCTYPE html><html><head><meta charset="utf-8"><style>{_CSS_TAB}</style></head><body>'
-            f'<div class="top"><span id="cnt"></span><button id="lp">Limpar filtros</button></div>'
-            f'<div class="tb"><table id="t"><thead><tr class="hd">{th}</tr><tr class="ft">{fl}</tr></thead>'
-            f'<tbody>{linhas}</tbody></table></div><script>{js}</script></body></html>')
+            f'<div class="table-container">'
+            f'<div class="table-header-bar"><button id="toggleFilters" class="filter-toggle-btn">🔍 Filtrar Tabela</button>'
+            f'<span class="record-count" id="cnt"></span><button id="lp" style="background:#e2e8f0;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;color:#334155;font-weight:600">Limpar Filtros</button></div>'
+            f'<div class="tb-wrapper"><table id="t"><thead>'
+            f'<tr>{th}</tr>'
+            f'<tr class="filter-row" id="filterRow">{fl}</tr>'
+            f'</thead><tbody>{linhas}</tbody></table></div></div>'
+            f'<script>{js}</script></body></html>')
 
 
 def card_aviso(titulo, sub):
@@ -1061,10 +1112,10 @@ elif pagina == "casos":
     st.markdown(html_kpis(casos), unsafe_allow_html=True)
     inc = st.toggle("Incluir casos finalizados")
     v = casos if inc else casos[~casos["concluido"]]
-    st.caption(f"Clique no título de uma coluna para ordenar · use os campos abaixo dos títulos para filtrar · "
+    st.caption(f"Clique no título de uma coluna para ordenar · clique no botão **Filtrar Tabela** acima da tabela para exibir os campos de filtro · "
                f"amarelo ≥ {ALERTA_AMARELO_DIAS} dias · vermelho ≥ {ALERTA_VERMELHO_DIAS} dias desde o recebimento")
     v = v.sort_values("dias", ascending=False, na_position="last")
-    components.html(html_tabela_interativa(v), height=690, scrolling=False)
+    components.html(html_tabela_interativa(v), height=660, scrolling=False)
 
 # -------- DASHBOARD (página "gestao") --------
 elif pagina == "gestao":
