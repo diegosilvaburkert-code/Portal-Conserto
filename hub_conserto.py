@@ -733,7 +733,6 @@ def html_tabela_interativa(df):
         grupo_status = r["grupo"]
         cor_status = COR_GRUPO.get(grupo_status, "#3b719f")
         
-        # Cor de destaque opcional e discreta na lateral esquerda se estiver crítico (vermelho) ou atenção (amarelo)
         borda_esquerda = "#e53935" if (pd.notna(d) and d >= ALERTA_VERMELHO_DIAS) else ("#f5b301" if (pd.notna(d) and d >= ALERTA_AMARELO_DIAS) else "#cbd5e1")
         
         tds = ""
@@ -747,7 +746,6 @@ def html_tabela_interativa(df):
             else:
                 tds += f'<td data-v="{esc(val_chave)}">{esc(val_txt)}</td>'
                 
-        # Adicionamos uma barra lateral esquerda fina indicando a urgência/alerta de dias sem colorir a linha inteira
         linhas += f'<tr style="border-left: 5px solid {borda_esquerda};">{tds}</tr>'
         
     js = _JS_TAB.replace("__DIAS__", str([c[1] for c in cols].index("dias")))
@@ -844,23 +842,46 @@ def _donut(pct, legenda):
             f'</svg><div class="pf-s">{legenda}</div></div>')
 
 
-def _linha(rot, vals, w=640, h=230):
-    n = len(vals)
-    pl, pr, pt, pb = 20, 20, 26, 34
-    mx = max(max(vals), 1)
+def _linha_dupla(rot, vals1, vals2, label1="Cases / NFs", label2="Itens Recebidos", w=640, h=240):
+    n = len(vals1)
+    pl, pr, pt, pb = 24, 24, 30, 38
+    all_vals = list(vals1) + list(vals2)
+    mx = max(max(all_vals), 1)
     X = lambda i: pl + (w - pl - pr) * (i / (n - 1) if n > 1 else 0.5)
     Y = lambda v: pt + (h - pt - pb) * (1 - v / mx)
+    
     grade = "".join(f'<line x1="{pl}" y1="{pt + (h - pt - pb) * k / 3:.1f}" x2="{w - pr}" '
                     f'y2="{pt + (h - pt - pb) * k / 3:.1f}" stroke="#e1e9f5"/>' for k in range(4))
-    pts = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals))
-    bolas = "".join(
-        f'<circle cx="{X(i):.1f}" cy="{Y(v):.1f}" r="5" fill="#fff" stroke="#6d8fb6" stroke-width="3"/>'
-        f'<text x="{X(i):.1f}" y="{Y(v) - 11:.1f}" text-anchor="middle" font-size="11" font-weight="600" '
-        f'fill="#3b719f">{v}</text>' for i, v in enumerate(vals))
-    eixo = "".join(f'<text x="{X(i):.1f}" y="{h - 10}" text-anchor="middle" font-size="11" fill="#8a97ab">{r}</text>'
+    
+    # Linha 1 (Cases / NFs - Azul)
+    pts1 = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals1))
+    bolas1 = "".join(
+        f'<circle cx="{X(i):.1f}" cy="{Y(v):.1f}" r="4.5" fill="#fff" stroke="#3b719f" stroke-width="2.5"/>'
+        f'<text x="{X(i):.1f}" y="{Y(v) - 9:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
+        f'fill="#3b719f">{v}</text>' for i, v in enumerate(vals1))
+    
+    # Linha 2 (Itens - Verde / Esmeralda)
+    pts2 = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals2))
+    bolas2 = "".join(
+        f'<circle cx="{X(i):.1f}" cy="{Y(v):.1f}" r="4.5" fill="#fff" stroke="#2fae6e" stroke-width="2.5"/>'
+        f'<text x="{X(i):.1f}" y="{Y(v) + 16:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
+        f'fill="#2fae6e">{v}</text>' for i, v in enumerate(vals2))
+    
+    eixo = "".join(f'<text x="{X(i):.1f}" y="{h - 12}" text-anchor="middle" font-size="11" fill="#8a97ab">{r}</text>'
                    for i, r in enumerate(rot))
-    return (f'<svg viewBox="0 0 {w} {h}" width="100%">{grade}<polyline points="{pts}" fill="none" stroke="#6d8fb6" '
-            f'stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>{bolas}{eixo}</svg>')
+                   
+    # Legenda superior
+    legenda = (f'<g transform="translate({pl}, 14)">'
+               f'<circle cx="6" cy="0" r="4" fill="#3b719f"/>'
+               f'<text x="14" y="3" font-size="11" font-weight="600" fill="#3b719f">{label1}</text>'
+               f'<circle cx="110" cy="0" r="4" fill="#2fae6e"/>'
+               f'<text x="118" y="3" font-size="11" font-weight="600" fill="#2fae6e">{label2}</text>'
+               f'</g>')
+
+    return (f'<svg viewBox="0 0 {w} {h}" width="100%">{grade}{legenda}'
+            f'<polyline points="{pts1}" fill="none" stroke="#3b719f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+            f'<polyline points="{pts2}" fill="none" stroke="#2fae6e" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+            f'{bolas1}{bolas2}{eixo}</svg>')
 
 
 def _barras(rot, vals, w=360, h=210, fmt=str):
@@ -907,6 +928,9 @@ def preparar_gestao(casos):
     for k in ("data_receb", "data_crm", "data_verif", "data_ordem", "data_reparo"):
         g["d_" + k] = pd.to_datetime(g[k].map(parse_data), errors="coerce")
     g["ap"] = g["aprovacao"].map(_norm)
+    
+    # Tratamento da quantidade de itens da Coluna E (itens)
+    g["qtd_itens"] = pd.to_numeric(g["itens"].astype(str).str.extract(r"(\d+)")[0], errors="coerce").fillna(1)
 
     def dif(a, b):
         d = (g["d_" + b] - g["d_" + a]).dt.days
@@ -962,15 +986,19 @@ def montar_gestao(g, sel, hoje):
 
     if sel is not None:
         per = pd.period_range(end=sel, periods=12, freq="M")
-        cont = rec.groupby("mes").size().reindex(per, fill_value=0)
-        linha = _linha([f"{MESES[p.month - 1]}/{str(p.year)[2:]}" for p in per], cont.tolist())
-        media_m = cont.mean()
+        cont_cases = rec.groupby("mes").size().reindex(per, fill_value=0)
+        cont_itens = rec.groupby("mes")["qtd_itens"].sum().reindex(per, fill_value=0)
+        
+        rotulos_meses = [f"{MESES[p.month - 1]}/{str(p.year)[2:]}" for p in per]
+        linha = _linha_dupla(rotulos_meses, cont_cases.tolist(), cont_itens.tolist(), label1="Cases (NFs)", label2="Itens Recebidos")
+        media_m = cont_cases.mean()
     else:
         linha, media_m = "", 0
-    grande = (f'<div class="pf-card"><div class="pf-t">Equipamentos recebidos · últimos 12 meses</div>'
+        
+    grande = (f'<div class="pf-card"><div class="pf-t">Equipamentos e Itens Recebidos · últimos 12 meses</div>'
               f'<div class="pf-big"><div style="flex:1;min-width:0">{linha}</div><div class="side">'
-              f'<span>Mês selecionado</span><b>{qtd}</b>'
-              f'<span style="margin-top:14px">Média mensal</span><b>{_fmt1(media_m)}</b></div></div></div>')
+              f'<span>Mês selecionado (Cases)</span><b>{qtd}</b>'
+              f'<span style="margin-top:14px">Média mensal (Cases)</span><b>{_fmt1(media_m)}</b></div></div></div>')
 
     fases = [("Logística → CRM", "t_log_crm"), ("Verificação", "t_verif"), ("Aprov. → Pedido", "t_pedido"), ("Reparo", "t_reparo")]
     medias = [round(float(g[c].mean()), 1) if g[c].notna().any() else 0 for _, c in fases]
@@ -1055,8 +1083,9 @@ with st.sidebar:
 
     st.markdown('<div style="border-bottom:1px solid rgba(255,255,255,.22);margin:16px 0;"></div>', unsafe_allow_html=True)
 
-    # 🔄 BOTÃO DE ATUALIZAÇÃO MANUAL
-    if st.button("🔄 Atualizar Dados", use_container_width=True, help="Limpa o cache e busca os dados mais recentes do Google Sheets"):
+    # 🔄 BOTÃO DE ATUALIZAÇÃO MANUAL (com texto dinâmico para não quebrar layout recolhido)
+    label_atualizacao = "🔄 Atualizar Dados" if expandido else "🔄"
+    if st.button(label_atualizacao, use_container_width=True, help="Limpa o cache e busca os dados mais recentes do Google Sheets"):
         st.cache_data.clear()
         st.rerun()
 
