@@ -302,10 +302,6 @@ def avaliar(r):
     f = lambda k: bool(r[k])
     falta = lambda ks: [LABEL[k] for k in ks if not r[k]]
     ap = _norm(r["aprovacao"])
-    ordem_status_norm = _norm(r["ordem_status"])
-    status_verif_norm = _norm(r["status_verif"])
-    aceite_val = str(r["aceite"]).strip()
-    
     reprov = ap in APROVACOES_REPROVADAS
     dispensa = ap in APROVACOES_SEM_PEDIDO
     concl = _norm(r["status_concl"]) in CONCLUIDOS
@@ -338,44 +334,108 @@ def avaliar(r):
         nao_feitas = [NOMES_FASES[i] for i in range(1, 7) if est[i] == "pulado"]
         aviso = ""
 
-    # Determinação do Grupo conforme as novas regras solicitadas:
-    # 1. Finalizado
-    if final or concl:
-        d = "Equipamento reparado, devolvido e processo concluído." if not reprov else "Relatório reprovado: equipamento devolvido sem reparo. Caso finalizado."
+    def res(status, grupo, detalhe, faltam=()):
+        return {"estados": est, "status": status, "grupo": grupo, "detalhe": detalhe + aviso,
+                "faltam": list(faltam), "concluido": bool(p8 or final)}
+
+    if final:
+        if reprov:
+            d = "Relatório reprovado: equipamento devolvido sem reparo. Caso finalizado."
+        else:
+            d = "Caso finalizado."
+            d += (" Etapas não realizadas (desconsideradas): " + ", ".join(nao_feitas) + ".") if nao_feitas else " Todas as etapas foram concluídas."
         if r["status_devol"]:
             d += f" Status da devolução: {r['status_devol']}."
-        return {"estados": est, "status": "Finalizado", "grupo": "Finalizados", "detalhe": d, "faltam": [], "concluido": True}
+        return res("Finalizado", "Finalizados", d)
 
-    # 2. Importação (Coluna A == "Importação" OU Coluna L == "Importação" OU Coluna N começa com 2530)
-    is_importacao = ("importa" in ordem_status_norm) or ("importa" in status_verif_norm) or aceite_val.startswith("2530")
-    if is_importacao:
-        return {"estados": est, "status": "Importação", "grupo": "Importação", "detalhe": "Equipamento em processo de importação.", "faltam": [], "concluido": False}
+    def devolucao():
+        extra = f" Status da devolução: {r['status_devol']}." if r["status_devol"] else ""
+        extra += f" Status de conclusão: {r['status_concl']}." if r["status_concl"] else ""
+        return res("Follow up", "Follow up",
+                   "Devolução solicitada." + extra, falta(["status_concl"]))
 
-    # 3. Garantia (Coluna M == "Garantia")
-    if ap == "garantia":
-        return {"estados": est, "status": "Garantia", "grupo": "Garantia", "detalhe": "Relatório em Garantia.", "faltam": [], "concluido": False}
-
-    # 4. Reprovado (Coluna M == "Reprovado")
-    if ap == "reprovado":
-        extra_faltam = falta(["solic_devol"]) if not f("solic_devol") else []
-        return {"estados": est, "status": "Reprovado", "grupo": "Reprovado", "detalhe": "Relatório reprovado.", "faltam": extra_faltam, "concluido": False}
-
-    # 5. Aprovado (Coluna M == "Aprovado")
-    if ap == "aprovado":
-        return {"estados": est, "status": "Aprovado", "grupo": "Aprovado", "detalhe": "Relatório aprovado.", "faltam": [], "concluido": False}
-
-    # 6. Regras padrão para A fazer e Follow up mantidas
     if not p1:
-        return {"estados": est, "status": "Dados incompletos", "grupo": "Dados incompletos", "detalhe": "O registro não tem o nome do cliente.", "faltam": falta(["cliente"]), "concluido": False}
+        return res("Dados incompletos", "Dados incompletos", "O registro não tem o nome do cliente.", falta(["cliente"]))
     if not p2:
-        return {"estados": est, "status": "A fazer", "grupo": "A fazer", "detalhe": "Cliente registrado. Falta confirmar o recebimento na Logística.", "faltam": falta(req2), "concluido": False}
+        return res("A fazer", "A fazer",
+                   "Cliente registrado. Falta confirmar o recebimento do material na Logística.", falta(req2))
     if not p3:
-        return {"estados": est, "status": "A fazer", "grupo": "A fazer", "detalhe": "Material recebido. Aguardando registro no CRM e Service Notification.", "faltam": falta(req3), "concluido": False}
+        return res("A fazer", "A fazer",
+                   "Material recebido pela Logística. Aguardando o registro no CRM e a Service Notification pelo setor de Serviços.",
+                   falta(req3))
     if not p4:
-        return {"estados": est, "status": "A fazer", "grupo": "A fazer", "detalhe": "Registro concluído. O equipamento está em verificação.", "faltam": ["Data final da verificação"], "concluido": False}
+        return res("A fazer", "A fazer",
+                   "Registro concluído. O equipamento está em verificação.", falta(["data_verif"]))
+    if not (p5 or bloq):
+        atual = f" Valor atual na planilha: '{r['aprovacao']}'." if r["aprovacao"] else ""
+        return res("Follow up", "Follow up",
+                   f"Verificação concluída em {r['data_verif']}. Aguardando a decisão do relatório "
+                   f"(Aprovado, Cortesia, Garantia ou Reprovado).{atual}", falta(["aprovacao"]))
+    if bloq:
+        if not p7:
+            return res("Reprovado", "Reprovado",
+                       "Relatório reprovado: não haverá reparo. Falta solicitar a devolução do equipamento.",
+                       falta(["solic_devol"]))
+        return devolucao() if not p8 else res("Finalizado", "Finalizados", "Equipamento devolvido sem reparo. Processo concluído.")
+    if not p6:
+        if not dispensa and not f("aceite"):
+            return res("Follow up", "Follow up",
+                       f"Relatório {r['aprovacao']}. Falta o aceite do pedido (Ordem SAP) para iniciar o reparo.",
+                       falta(["aceite"]))
+        return res("Importação", "Importação",
+                   f"Relatório {r['aprovacao']}"
+                   + (" (sem pedido)" if dispensa else f"; pedido {r['aceite']} aceito") + ". Equipamento em reparo.",
+                   falta(["data_reparo"]))
+    if not p7:
+        return res("Follow up", "Follow up",
+                   f"Reparo finalizado em {r['data_reparo']}. Falta solicitar a devolução ao cliente.",
+                   falta(["solic_devol"]))
+    if not p8:
+        return devolucao()
+    return res("Finalizado", "Finalizados", "Equipamento reparado, devolvido e processo concluído.")
 
-    # Demais casos pendentes vão para Follow up
-    return {"estados": est, "status": "Follow up", "grupo": "Follow up", "detalhe": "Aguardando próxima etapa do fluxo.", "faltam": [], "concluido": False}
+
+# ======================= CLASSIFICAÇÃO INDIVIDUAL PARA OS CARDS (HISTÓRICO COMPLETO) =======================
+def classificar_caso_cards(r):
+    """
+    Retorna uma lista de grupos aos quais este caso pertence, permitindo contagem 
+    e histórico individual e não-excludente para os cartões solicitados.
+    """
+    grupos = []
+    
+    ordem_status_norm = _norm(r["ordem_status"])
+    status_verif_norm = _norm(r["status_verif"])
+    aceite_val = str(r["aceite"]).strip()
+    ap = _norm(r["aprovacao"])
+    concl = _norm(r["status_concl"]) in CONCLUIDOS
+    
+    # 1. Finalizados
+    if concl or r["status"] == "Finalizado":
+        grupos.append("Finalizados")
+    
+    # 2. Importação: Coluna A == "Importação" OU Coluna L == "Importação" OU Coluna N começa com 2530
+    if ("importa" in ordem_status_norm) or ("importa" in status_verif_norm) or aceite_val.startswith("2530"):
+        grupos.append("Importação")
+        
+    # 3. Garantia: Coluna M == "Garantia"
+    if ap == "garantia":
+        grupos.append("Garantia")
+        
+    # 4. Reprovado: Coluna M == "Reprovado"
+    if ap == "reprovado":
+        grupos.append("Reprovado")
+        
+    # 5. Aprovado: Coluna M == "Aprovado"
+    if ap == "aprovado":
+        grupos.append("Aprovado")
+        
+    # 6. A fazer e Follow Up (mantém a lógica padrão do fluxo principal se não estiver concluído)
+    if not concl:
+        g_fluxo = r["grupo"]
+        if g_fluxo in ["A fazer", "Follow up"]:
+            grupos.append(g_fluxo)
+            
+    return grupos if grupos else [r["grupo"]]
 
 
 # ======================= LEITURA E ESCRITA DA PLANILHA =======================
@@ -420,6 +480,10 @@ def ler_casos(valores, hoje):
     df["grupo"] = [a["grupo"] for a in av]
     df["concluido"] = [a["concluido"] for a in av]
     df["_aval"] = av
+    
+    # Atribui a lista de grupos individuais para histórico/cards
+    df["grupos_individuais"] = [classificar_caso_cards(r) for r in df.to_dict("records")]
+    
     dt = df["data_receb"].map(parse_data)
     df["dias"] = [(hoje - d).days if pd.notna(d) and not c else None for d, c in zip(dt, df["concluido"])]
     return df, ausentes
@@ -579,7 +643,9 @@ def html_cards(r, estados):
 
 
 def html_kpis(df):
-    cont = df["grupo"].value_counts()
+    # Conta individualmente somando as ocorrências em cada lista da coluna grupos_individuais
+    todas_ocorrencias = [g for sublist in df["grupos_individuais"] for g in sublist]
+    cont = pd.Series(todas_ocorrencias).value_counts()
     
     card_ordem = [
         ("A fazer", COR_GRUPO["A fazer"]),
@@ -840,20 +906,17 @@ def _linha_dupla(rot, vals1, vals2, label1="Cases / NFs", label2="Itens Recebido
         x = X(i)
         y1, y2 = Y(v1), Y(v2)
         
-        # Dinâmica estrita solicitada: Linha de baixo fica ABAIXO, Linha de cima fica ACIMA
-        if y1 < y2:  # v1 > v2 (Linha Azul por cima)
+        if y1 < y2:
             off1, off2 = -10, 18
-        elif y2 < y1:  # v2 > v1 (Linha Cinza por cima)
+        elif y2 < y1:
             off1, off2 = 18, -10
-        else:  # v1 == v2 (Empate exato)
+        else:
             off1, off2 = -10, 18
 
-        # Linha 1 (Cases / NFs - Azul)
         bolas1 += (f'<circle cx="{x:.1f}" cy="{y1:.1f}" r="4.5" fill="#fff" stroke="#3b719f" stroke-width="2.5"/>'
                    f'<text x="{x:.1f}" y="{y1 + off1:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
                    f'fill="#3b719f">{v1}</text>')
                    
-        # Linha 2 (Itens - Cinza Profissional)
         bolas2 += (f'<circle cx="{x:.1f}" cy="{y2:.1f}" r="4.5" fill="#fff" stroke="#788294" stroke-width="2.5"/>'
                    f'<text x="{x:.1f}" y="{y2 + off2:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
                    f'fill="#5a6371">{v2}</text>')
@@ -995,10 +1058,11 @@ def montar_gestao(g, sel, hoje):
                    f'<div class="pf-s">Média de dias em cada etapa (casos com as duas datas preenchidas)</div>'
                    f'{_barras([n for n, _ in fases], medias, fmt=_fmt1)}</div>')
 
-    sit = g["grupo"].value_counts()
+    todas_g = [gr for sub in g["grupos_individuais"] for gr in sub]
+    sit = pd.Series(todas_g).value_counts()
     sit_l = [(gp, int(sit[gp])) for gp in ["A fazer", "Follow up", "Importação", "Garantia", "Reprovado", "Aprovado"] if sit.get(gp, 0)]
     l_sit = (f'<div class="pf-card"><div class="pf-t">Situação dos casos (Grupos)</div>'
-             f'<div class="pf-s">Quantidade de casos em cada categoria</div>{_lista(sit_l, lambda v: f"{v}")}</div>')
+             f'<div class="pf-s">Quantidade de ocorrências em cada categoria</div>{_lista(sit_l, lambda v: f"{v}")}</div>')
 
     nomes_ap = {"garantia": "Garantia", "aprovado": "Aprovado", "cortesia": "Cortesia", "reprovado": "Reprovado"}
     res = [(n, int((g["ap"] == k).sum())) for k, n in nomes_ap.items()]
