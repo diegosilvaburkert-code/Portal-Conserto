@@ -842,9 +842,9 @@ def _donut(pct, legenda):
             f'</svg><div class="pf-s">{legenda}</div></div>')
 
 
-def _linha_dupla(rot, vals1, vals2, label1="Cases / NFs", label2="Itens Recebidos", w=640, h=240):
+def _linha_dupla(rot, vals1, vals2, label1="Cases / NFs", label2="Itens Recebidos", w=640, h=250):
     n = len(vals1)
-    pl, pr, pt, pb = 24, 24, 30, 38
+    pl, pr, pt, pb = 28, 28, 36, 38
     all_vals = list(vals1) + list(vals2)
     mx = max(max(all_vals), 1)
     X = lambda i: pl + (w - pl - pr) * (i / (n - 1) if n > 1 else 0.5)
@@ -853,34 +853,47 @@ def _linha_dupla(rot, vals1, vals2, label1="Cases / NFs", label2="Itens Recebido
     grade = "".join(f'<line x1="{pl}" y1="{pt + (h - pt - pb) * k / 3:.1f}" x2="{w - pr}" '
                     f'y2="{pt + (h - pt - pb) * k / 3:.1f}" stroke="#e1e9f5"/>' for k in range(4))
     
-    # Linha 1 (Cases / NFs - Azul)
     pts1 = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals1))
-    bolas1 = "".join(
-        f'<circle cx="{X(i):.1f}" cy="{Y(v):.1f}" r="4.5" fill="#fff" stroke="#3b719f" stroke-width="2.5"/>'
-        f'<text x="{X(i):.1f}" y="{Y(v) - 9:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
-        f'fill="#3b719f">{v}</text>' for i, v in enumerate(vals1))
-    
-    # Linha 2 (Itens - Verde / Esmeralda)
     pts2 = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals2))
-    bolas2 = "".join(
-        f'<circle cx="{X(i):.1f}" cy="{Y(v):.1f}" r="4.5" fill="#fff" stroke="#2fae6e" stroke-width="2.5"/>'
-        f'<text x="{X(i):.1f}" y="{Y(v) + 16:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
-        f'fill="#2fae6e">{v}</text>' for i, v in enumerate(vals2))
     
+    bolas1, bolas2 = "", ""
+    for i, (v1, v2) in enumerate(zip(vals1, vals2)):
+        x = X(i)
+        y1, y2 = Y(v1), Y(v2)
+        
+        # Posicionamento inteligente anti-colisão vertical
+        # Se as duas linhas estiverem muito próximas no mesmo ponto x, deslocamos os textos levemente
+        offset_y1, offset_y2 = -10, -10
+        if abs(y1 - y2) < 14:
+            if v1 >= v2:
+                offset_y1, offset_y2 = -14, 16
+            else:
+                offset_y1, offset_y2 = 16, -14
+
+        # Linha 1 (Cases / NFs - Azul)
+        bolas1 += (f'<circle cx="{x:.1f}" cy="{y1:.1f}" r="4.5" fill="#fff" stroke="#3b719f" stroke-width="2.5"/>'
+                   f'<text x="{x:.1f}" y="{y1 + offset_y1:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
+                   f'fill="#3b719f">{v1}</text>')
+                   
+        # Linha 2 (Itens - Cinza Profissional #788294)
+        bolas2 += (f'<circle cx="{x:.1f}" cy="{y2:.1f}" r="4.5" fill="#fff" stroke="#788294" stroke-width="2.5"/>'
+                   f'<text x="{x:.1f}" y="{y2 + offset_y2:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
+                   f'fill="#5a6371">{v2}</text>')
+
     eixo = "".join(f'<text x="{X(i):.1f}" y="{h - 12}" text-anchor="middle" font-size="11" fill="#8a97ab">{r}</text>'
                    for i, r in enumerate(rot))
                    
-    # Legenda superior
+    # Legenda superior limpa
     legenda = (f'<g transform="translate({pl}, 14)">'
                f'<circle cx="6" cy="0" r="4" fill="#3b719f"/>'
                f'<text x="14" y="3" font-size="11" font-weight="600" fill="#3b719f">{label1}</text>'
-               f'<circle cx="110" cy="0" r="4" fill="#2fae6e"/>'
-               f'<text x="118" y="3" font-size="11" font-weight="600" fill="#2fae6e">{label2}</text>'
+               f'<circle cx="120" cy="0" r="4" fill="#788294"/>'
+               f'<text x="128" y="3" font-size="11" font-weight="600" fill="#5a6371">{label2}</text>'
                f'</g>')
 
     return (f'<svg viewBox="0 0 {w} {h}" width="100%">{grade}{legenda}'
             f'<polyline points="{pts1}" fill="none" stroke="#3b719f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
-            f'<polyline points="{pts2}" fill="none" stroke="#2fae6e" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+            f'<polyline points="{pts2}" fill="none" stroke="#788294" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
             f'{bolas1}{bolas2}{eixo}</svg>')
 
 
@@ -929,7 +942,6 @@ def preparar_gestao(casos):
         g["d_" + k] = pd.to_datetime(g[k].map(parse_data), errors="coerce")
     g["ap"] = g["aprovacao"].map(_norm)
     
-    # Tratamento da quantidade de itens da Coluna E (itens)
     g["qtd_itens"] = pd.to_numeric(g["itens"].astype(str).str.extract(r"(\d+)")[0], errors="coerce").fillna(1)
 
     def dif(a, b):
@@ -1083,7 +1095,6 @@ with st.sidebar:
 
     st.markdown('<div style="border-bottom:1px solid rgba(255,255,255,.22);margin:16px 0;"></div>', unsafe_allow_html=True)
 
-    # 🔄 BOTÃO DE ATUALIZAÇÃO MANUAL (com texto dinâmico para não quebrar layout recolhido)
     label_atualizacao = "🔄 Atualizar Dados" if expandido else "🔄"
     if st.button(label_atualizacao, use_container_width=True, help="Limpa o cache e busca os dados mais recentes do Google Sheets"):
         st.cache_data.clear()
