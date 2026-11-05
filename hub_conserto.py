@@ -844,7 +844,7 @@ def _donut(pct, legenda):
 
 def _linha_dupla(rot, vals1, vals2, label1="Cases / NFs", label2="Itens Recebidos", w=640, h=250):
     n = len(vals1)
-    pl, pr, pt, pb = 28, 28, 36, 38
+    pl, pr, pt, pb = 28, 28, 40, 38
     all_vals = list(vals1) + list(vals2)
     mx = max(max(all_vals), 1)
     X = lambda i: pl + (w - pl - pr) * (i / (n - 1) if n > 1 else 0.5)
@@ -861,29 +861,28 @@ def _linha_dupla(rot, vals1, vals2, label1="Cases / NFs", label2="Itens Recebido
         x = X(i)
         y1, y2 = Y(v1), Y(v2)
         
-        # Posicionamento inteligente anti-colisão vertical
-        # Se as duas linhas estiverem muito próximas no mesmo ponto x, deslocamos os textos levemente
-        offset_y1, offset_y2 = -10, -10
-        if abs(y1 - y2) < 14:
-            if v1 >= v2:
-                offset_y1, offset_y2 = -14, 16
-            else:
-                offset_y1, offset_y2 = 16, -14
+        # Lógica de posicionamento alternado anti-sobreposição:
+        # Menor valor Y no SVG = linha posicionada mais ALTO na tela.
+        if y1 < y2:  # v1 > v2 (Linha Azul por cima)
+            off1, off2 = -10, 18
+        elif y2 < y1:  # v2 > v1 (Linha Cinza por cima)
+            off1, off2 = 18, -10
+        else:  # v1 == v2 (Empate exato)
+            off1, off2 = -10, 18
 
         # Linha 1 (Cases / NFs - Azul)
         bolas1 += (f'<circle cx="{x:.1f}" cy="{y1:.1f}" r="4.5" fill="#fff" stroke="#3b719f" stroke-width="2.5"/>'
-                   f'<text x="{x:.1f}" y="{y1 + offset_y1:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
+                   f'<text x="{x:.1f}" y="{y1 + off1:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
                    f'fill="#3b719f">{v1}</text>')
                    
-        # Linha 2 (Itens - Cinza Profissional #788294)
+        # Linha 2 (Itens - Cinza Profissional)
         bolas2 += (f'<circle cx="{x:.1f}" cy="{y2:.1f}" r="4.5" fill="#fff" stroke="#788294" stroke-width="2.5"/>'
-                   f'<text x="{x:.1f}" y="{y2 + offset_y2:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
+                   f'<text x="{x:.1f}" y="{y2 + off2:.1f}" text-anchor="middle" font-size="10.5" font-weight="700" '
                    f'fill="#5a6371">{v2}</text>')
 
     eixo = "".join(f'<text x="{X(i):.1f}" y="{h - 12}" text-anchor="middle" font-size="11" fill="#8a97ab">{r}</text>'
                    for i, r in enumerate(rot))
                    
-    # Legenda superior limpa
     legenda = (f'<g transform="translate({pl}, 14)">'
                f'<circle cx="6" cy="0" r="4" fill="#3b719f"/>'
                f'<text x="14" y="3" font-size="11" font-weight="600" fill="#3b719f">{label1}</text>'
