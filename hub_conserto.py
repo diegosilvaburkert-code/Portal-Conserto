@@ -1110,7 +1110,7 @@ pagina = st.session_state["pagina_conserto"]
 
 # ======================= CABEÇALHO DA PÁGINA =======================
 PAGINAS = {
-    "gestao": ("Visão geral.", "Lead time, volume e gargalos do conserto, em tempo real."),
+    "gestao": ("Gestão à Vista.", "Lead time, volume e gargalos do conserto, em tempo real."),
     "consulta": ("Onde está o equipamento.", "Digite a NF, o CAS ou a Service Notification e veja o fluxo completo."),
     "casos": ("Em andamento.", "Todos os casos abertos, dos mais antigos aos mais recentes."),
     "gerenciar": ("Inserir ou atualizar.", "O que você registra aqui vai direto para a planilha."),
